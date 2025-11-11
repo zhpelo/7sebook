@@ -139,7 +139,7 @@ if ($action === 'download' && $book_id && is_logged_in()) {
         $download_error = '今日下载次数已达上限（5次），请明天再试';
     } else {
         // 记录下载日志
-        //log_download($user_id, $book_id);
+        log_download($user_id, $book_id);
 
         $stmt = $pdo->prepare(" SELECT file_path FROM books  WHERE id = ? ");
         $stmt->execute([$book_id]);
