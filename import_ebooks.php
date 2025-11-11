@@ -115,7 +115,7 @@ foreach ($limitedFiles as $filePath) {
             $meta['published_at'] ?? null,
             $meta['identifiers'] ?? null,
             $meta['summary'] ?? null,
-            str_replace(__DIR__, '', $meta['cover_path']) ?? null,
+            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null,
             str_replace(__DIR__, '', $destPath),
         ]);
     } catch (PDOException $e) {
