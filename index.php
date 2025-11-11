@@ -569,7 +569,7 @@ function get_user_download_count() {
             <?php if (empty($query)): ?>
                 <div class="text-center py-20">
                     <i class="fas fa-book-open text-6xl text-gray-300 mb-4"></i>
-                    <h3 class="text-xl font-semibold text-gray-600 mb-2">欢迎使用电子书搜索</h3>
+                    <h3 class="text-xl font-semibold text-gray-600 mb-2">欢迎使用七秒电子书</h3>
                     <p class="text-gray-500">请输入关键词开始搜索您的电子书</p>
                 </div>
             <?php elseif (empty($books ?? [])): ?>
