@@ -9,11 +9,6 @@ $successDir    = __DIR__.'/ebook';  //处理完成移入的目录
 $duplicateDir  = __DIR__.'/duplicate'; // 建议用英文路径
 $coverDir      = __DIR__.'/covers';  //封面存储的目录
 
-$dbHost = 'localhost';
-$dbName = '7sebook_com';
-$dbUser = '7sebook_com';
-$dbPass = 'inSZGYaiQhJxPTwQ';
-
 $supportedExts = [
     'epub', 'mobi', 'azw3', 'fb2', 'djvu',
     'doc', 'docx', 'odt', 'odf', 'chm'
@@ -28,7 +23,7 @@ foreach ([$successDir, $duplicateDir, $coverDir] as $dir) {
 }
 
 try {
-    $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4", $dbUser, $dbPass, [
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
@@ -49,8 +44,8 @@ foreach ($iterator as $file) {
 }
 
 echo "找到 " . count($files) . " 个电子书文件\n";
-// 只取前 10 个文件
-$limitedFiles = array_slice($files, 0, 10);
+// 只取前 30 个文件
+$limitedFiles = array_slice($files, 0, 30);
 
 foreach ($limitedFiles as $filePath) {
     echo "处理: $filePath\n";
@@ -72,8 +67,6 @@ foreach ($limitedFiles as $filePath) {
         continue;
     }
     
-   
-
     // 检查是否已存在
     $stmt = $pdo->prepare("SELECT 1 FROM books WHERE file_md5 = ?");
     $stmt->execute([$md5]);
