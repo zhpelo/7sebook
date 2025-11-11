@@ -2,10 +2,10 @@
 declare(strict_types=1);
 
 // =============== 配置区 ===============
-$inputDir      = __DIR__.'/test/'; // 修改为你的输入目录
-$successDir    = __DIR__.'/ebook';
+$inputDir      = __DIR__.'/test'; // 修改为你的输入目录
+$successDir    = __DIR__.'/ebook';  //处理完成移入的目录
 $duplicateDir  = __DIR__.'/duplicate'; // 建议用英文路径
-$coverDir      = __DIR__.'/covers';
+$coverDir      = __DIR__.'/covers';  //封面存储的目录
 
 $dbHost = 'localhost';
 $dbName = '7sebook_com';
@@ -47,9 +47,10 @@ foreach ($iterator as $file) {
 }
 
 echo "找到 " . count($files) . " 个电子书文件\n";
+// 只取前 10 个文件
+$limitedFiles = array_slice($files, 0, 10);
 
-
-foreach ($files as $filePath) {
+foreach ($limitedFiles as $filePath) {
     echo "处理: $filePath\n";
     
     if (!is_readable($filePath)) {
@@ -91,11 +92,21 @@ foreach ($files as $filePath) {
         echo "❌ 元数据提取失败\n";
         continue;
     }
+    
+    $newName = $md5 . '.' . $ext;
+    $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
+    
 
     // 插入数据库
     $stmt = $pdo->prepare("
-        INSERT INTO books (md5, filename, format, file_size, title, authors, translators, summary, cover_path)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO books (
+        file_md5, file_name, file_format, file_size, 
+        title, author, languages, published_at, identifiers, description, 
+        cover_url,file_path,created_at)
+    VALUES (
+        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
+        ?,?, NOW())
     ");
     try {
         $stmt->execute([
@@ -105,18 +116,21 @@ foreach ($files as $filePath) {
             $size,
             $meta['title'] ?? null,
             $meta['authors'] ?? null,
-            $meta['translators'] ?? null,
+            $meta['languages'] ?? null,
+            $meta['published_at'] ?? null,
+            $meta['identifiers'] ?? null,
             $meta['summary'] ?? null,
-            $meta['cover_path'] ?? null
+            str_replace(__DIR__, '', $meta['cover_path']) ?? null,
+            str_replace(__DIR__, '', $destPath),
         ]);
     } catch (PDOException $e) {
         echo "❌ 插入数据库失败: " . $e->getMessage() . "\n";
-        continue;
+        // continue;
+        die();
     }
 
     // 移动文件
-    $newName = $md5 . '.' . $ext;
-    $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
+    
     if (@rename($filePath, $destPath) || copyAndDelete($filePath, $destPath)) {
         echo "✅ 成功处理并移动到 $destPath\n";
     } else {
@@ -128,32 +142,91 @@ echo "所有文件处理完成！\n";
 
 // ==================== 辅助函数 ====================
 
+/**
+ * 使用 ebook-meta 提取电子书元数据和封面
+ *
+ * @param string $filePath 原始电子书文件路径
+ * @param string $md5 文件 MD5（用于封面命名）
+ * @param string $coverDir 封面保存目录（需可写）
+ * @return array|null 成功返回元数据数组，失败返回 null
+ */
+/**
+ * 提取电子书完整元数据（支持 Title, Author(s), Publisher, Languages, Published, Identifiers）
+ */
 function extractMetadata(string $filePath, string $md5, string $coverDir): ?array {
-    // 调用 ebook-meta --json
-    $jsonOutput = shell_exec("ebook-meta --json " . escapeshellarg($filePath) . " 2>/dev/null");
-    if (empty($jsonOutput)) {
+    if (!is_dir($coverDir)) {
+        mkdir($coverDir, 0755, true);
+    }
+
+    // 执行 ebook-meta（带环境变量）
+    $cmd = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta ' . escapeshellarg($filePath) . ' 2>&1';
+    $output = shell_exec($cmd);
+
+    if (empty($output) || strpos($output, 'Traceback') !== false) {
+        error_log("ebook-meta 失败: " . substr($output, 0, 500));
         return null;
     }
 
-    $data = json_decode($jsonOutput, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        return null;
-    }
-
+    // 初始化所有字段
     $meta = [
-        'title' => $data['title'] ?? null,
-        'authors' => !empty($data['authors']) ? implode(', ', (array)$data['authors']) : null,
-        'translators' => $data['translators'] ?? null, // Calibre 通常无此字段
-        'summary' => $data['comments'] ?? null,
-        'cover_path' => null
+        'title'        => null,
+        'authors'      => null,
+        'publisher'    => null,
+        'languages'    => null,
+        'published_at' => null,   // 注意：这是 DATETIME，不是字符串
+        'identifiers'  => null,
+        'summary'      => null,
+        'cover_path'   => null,
     ];
 
-    // 提取封面
+    // 按行解析
+    $lines = explode("\n", $output);
+    foreach ($lines as $line) {
+        if (trim($line) === '' || strpos($line, ':') === false) continue;
+
+        [$keyPart, $valuePart] = array_pad(explode(':', $line, 2), 2, '');
+        $key = trim($keyPart);
+        $value = trim($valuePart);
+
+        if ($value === '' || $value === 'Unknown') continue;
+
+        // 字段映射
+        if (preg_match('/^Title$/i', $key)) {
+            $meta['title'] = $value;
+        } elseif (preg_match('/^Author\(s\)$/i', $key)) {
+            $authors = preg_split('/\s*[&,]\s*/', $value, -1, PREG_SPLIT_NO_EMPTY);
+            $meta['authors'] = implode(', ', $authors);
+        } elseif (preg_match('/^Publisher$/i', $key)) {
+            $meta['publisher'] = $value;
+        } elseif (preg_match('/^Languages$/i', $key)) {
+            $meta['languages'] = $value; // 如 "zho" 或 "eng,zho"
+        } elseif (preg_match('/^Published$/i', $key)) {
+            // 转换 ISO8601 时间为 MySQL DATETIME 格式
+            // 输入: 2010-09-01T00:00:00+00:00
+            $dt = date_create($value);
+            if ($dt) {
+                $meta['published_at'] = $dt->format('Y-m-d H:i:s');
+            }
+        } elseif (preg_match('/^Identifiers$/i', $key)) {
+            $meta['identifiers'] = $value; // 如 "mobi-asin:B00T5Q28CI"
+        } elseif (preg_match('/^Comments$/i', $key)) {
+            $meta['summary'] = $value;
+        }
+    }
+    
+ 
+    
+
+    // === 提取封面 ===
     $coverPath = $coverDir . DIRECTORY_SEPARATOR . $md5 . '.jpg';
-    $cmd = "ebook-meta --get-cover=" . escapeshellarg($coverPath) . " " . escapeshellarg($filePath) . " 2>/dev/null";
-    exec($cmd, $output, $returnCode);
-    if ($returnCode === 0 && file_exists($coverPath)) {
+    $cmdCover = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta --get-cover=' . escapeshellarg($coverPath) . ' ' . escapeshellarg($filePath) . ' 2>/dev/null';
+    
+    exec($cmdCover, $out, $ret);
+
+    if ($ret === 0 && is_file($coverPath) && filesize($coverPath) > 1024) {
         $meta['cover_path'] = $coverPath;
+    } else {
+        if (is_file($coverPath)) unlink($coverPath);
     }
 
     return $meta;

@@ -393,7 +393,7 @@ function get_user_download_count() {
             <div class="p-6">
                 <div class="flex flex-col md:flex-row">
                     <div class="md:w-1/3 mb-6 md:mb-0 md:pr-6">
-                        <div class="h-96 bg-gray-100 flex items-center justify-center rounded-lg">
+                        <div class="bg-gray-100 flex items-center justify-center rounded-lg">
                             <?php if ($book['cover_url']): ?>
                                 <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover rounded-lg">
                             <?php else: ?>
@@ -414,15 +414,15 @@ function get_user_download_count() {
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div class="bg-blue-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">类别</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['category']); ?></div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['category'] ?? "" ); ?></div>
                             </div>
                             <div class="bg-green-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">出版社</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['publisher']); ?></div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['publisher'] ?? "" ); ?></div>
                             </div>
                             <div class="bg-yellow-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">出版日期</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['formatted_date']); ?></div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['formatted_date'] ?? ""); ?></div>
                             </div>
                             <div class="bg-purple-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">页数</div>
@@ -432,7 +432,7 @@ function get_user_download_count() {
                         
                         <div class="mb-6">
                             <h2 class="text-xl font-semibold text-gray-800 mb-2">简介</h2>
-                            <p class="text-gray-600"><?php echo htmlspecialchars($book['description']); ?></p>
+                            <p class="text-gray-600"><?php echo htmlspecialchars($book['description'] ?? ""); ?></p>
                         </div>
                         
                         <div class="mb-6">
@@ -454,15 +454,15 @@ function get_user_download_count() {
                                 <div class="grid grid-cols-3 gap-4">
                                     <div>
                                         <div class="text-sm text-gray-500">格式</div>
-                                        <div class="font-semibold">PDF</div>
+                                        <div class="font-semibold"><?php echo htmlspecialchars($book['file_format']); ?></div>
                                     </div>
                                     <div>
                                         <div class="text-sm text-gray-500">大小</div>
-                                        <div class="font-semibold">5.2 MB</div>
+                                        <div class="font-semibold"><?php echo htmlspecialchars($book['file_size']); ?></div>
                                     </div>
                                     <div>
                                         <div class="text-sm text-gray-500">语言</div>
-                                        <div class="font-semibold"><?php echo htmlspecialchars($book['language']); ?></div>
+                                        <div class="font-semibold"><?php echo htmlspecialchars($book['languages']); ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -582,8 +582,9 @@ function get_user_download_count() {
                 <!-- 书籍网格 -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
                     <?php foreach ($books as $book): ?>
+                    <a href="?action=detail&id=<?php echo $book['id']; ?>">
                     <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                        <div class="h-48 bg-gray-100 flex items-center justify-center">
+                        <div class="bg-gray-100 flex items-center justify-center">
                             <?php if ($book['cover_url']): ?>
                                 <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
                             <?php else: ?>
@@ -599,19 +600,15 @@ function get_user_download_count() {
                                 <i class="fas fa-user text-sm mr-2"></i>
                                 <?php echo highlight_matches(htmlspecialchars($book['author']), $query ?? ''); ?>
                             </p>
-                            <p class="text-gray-500 text-sm line-clamp-3"><?php echo highlight_matches(htmlspecialchars(mb_substr($book['description'], 0, 100) . '...'), $query ?? ''); ?></p>
+                            <p class="text-gray-500 text-sm line-clamp-3"><?php echo highlight_matches(htmlspecialchars(mb_substr($book['description'] ?? "", 0, 100) . '...'), $query ?? ''); ?></p>
                             <?php if (isset($book['relevance_score'])): ?>
                                 <div class="mt-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded inline-block">
                                     相关度: <?php echo round($book['relevance_score'], 1); ?>
                                 </div>
                             <?php endif; ?>
-                            <div class="mt-3">
-                                <a href="?action=detail&id=<?php echo $book['id']; ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition">
-                                    <i class="fas fa-info-circle mr-1"></i> 详情
-                                </a>
-                            </div>
                         </div>
                     </div>
+                     </a>
                     <?php endforeach; ?>
                 </div>
 
