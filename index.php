@@ -1,12 +1,7 @@
 <?php
 // 带详情页和下载功能的电子书搜索系统
 session_start();
-
-// 数据库配置
-$host = 'localhost';
-$dbname = '7sebook_com';
-$username = '7sebook_com';
-$password = 'inSZGYaiQhJxPTwQ';
+require 'config.php';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
@@ -144,11 +139,15 @@ if ($action === 'download' && $book_id && is_logged_in()) {
         $download_error = '今日下载次数已达上限（5次），请明天再试';
     } else {
         // 记录下载日志
-        log_download($user_id, $book_id);
+        //log_download($user_id, $book_id);
+
+        $stmt = $pdo->prepare(" SELECT file_path FROM books  WHERE id = ? ");
+        $stmt->execute([$book_id]);
+        $book = $stmt->fetch(PDO::FETCH_ASSOC);
+
+
+        $filepath = __DIR__.$book['file_path'];
         
-        // 模拟下载 - 这里应该根据实际文件路径提供下载
-        $filename = $book_id . '.pdf';
-        $filepath = 'books/' . $filename; // 假设文件存储在books目录下
         
         // 如果文件存在，提供下载
         if (file_exists($filepath)) {
@@ -160,6 +159,7 @@ if ($action === 'download' && $book_id && is_logged_in()) {
         } else {
             // 如果文件不存在，返回错误
             $download_error = '文件不存在';
+            die("文件不存在");
         }
     }
 }
@@ -217,6 +217,16 @@ if ($action === 'search') {
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // 计算耗时
+        $end_time = microtime(true);
+        $time_taken = round($end_time - $start_time, 3);
+    } else {
+        // 没有搜索关键词时，显示最新的100本书
+        $start_time = microtime(true);
+        $sql = "SELECT * FROM books ORDER by id Desc LIMIT 100 ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $total = count($books);
         $end_time = microtime(true);
         $time_taken = round($end_time - $start_time, 3);
     }
@@ -566,21 +576,24 @@ function get_user_download_count() {
 
         <!-- 搜索结果 -->
         <div id="resultsContainer">
-            <?php if (empty($query)): ?>
-                <div class="text-center py-20">
-                    <i class="fas fa-book-open text-6xl text-gray-300 mb-4"></i>
-                    <h3 class="text-xl font-semibold text-gray-600 mb-2">欢迎使用七秒电子书</h3>
-                    <p class="text-gray-500">请输入关键词开始搜索您的电子书</p>
-                </div>
-            <?php elseif (empty($books ?? [])): ?>
+            <?php // if (empty($query)): ?>
+                <!-- <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">最新图书</h2>
+                    <p class="text-gray-600">显示最新 <span class="font-bold text-blue-600">100</span> 本图书</p>
+                </div> -->
+            <?php if (empty($books ?? [])): ?>
                 <div class="text-center py-20">
                     <i class="fas fa-book text-6xl text-gray-300 mb-4"></i>
                     <h3 class="text-xl font-semibold text-gray-600 mb-2">未找到相关书籍</h3>
                     <p class="text-gray-500">请尝试使用其他关键词搜索</p>
                 </div>
             <?php else: ?>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800"><?php echo empty($query) ? '最新图书' : '搜索结果'; ?></h2>
+                    <p class="text-gray-600">找到 <span class="font-bold text-blue-600"><?php echo $total ?? 0; ?></span> 条结果</p>
+                </div>
                 <!-- 书籍网格 -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
                     <?php foreach ($books as $book): ?>
                     <a href="?action=detail&id=<?php echo $book['id']; ?>">
                     <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
@@ -595,13 +608,13 @@ function get_user_download_count() {
                             <?php endif; ?>
                         </div>
                         <div class="p-4">
-                            <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo highlight_matches(htmlspecialchars($book['title']), $query ?? ''); ?></h3>
+                            <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query ?? ''); ?></h3>
                             <p class="text-gray-600 mb-2 flex items-center">
                                 <i class="fas fa-user text-sm mr-2"></i>
-                                <?php echo highlight_matches(htmlspecialchars($book['author']), $query ?? ''); ?>
+                                <?php echo empty($query) ? htmlspecialchars($book['author']) : highlight_matches(htmlspecialchars($book['author']), $query ?? ''); ?>
                             </p>
-                            <p class="text-gray-500 text-sm line-clamp-3"><?php echo highlight_matches(htmlspecialchars(mb_substr($book['description'] ?? "", 0, 100) . '...'), $query ?? ''); ?></p>
-                            <?php if (isset($book['relevance_score'])): ?>
+                            <p class="text-gray-500 text-sm line-clamp-3"><?php echo empty($query) ? htmlspecialchars(mb_substr($book['description'] ?? "", 0, 100) . '...') : highlight_matches(htmlspecialchars(mb_substr($book['description'] ?? "", 0, 100) . '...'), $query ?? ''); ?></p>
+                            <?php if (isset($book['relevance_score']) && !empty($query)): ?>
                                 <div class="mt-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded inline-block">
                                     相关度: <?php echo round($book['relevance_score'], 1); ?>
                                 </div>
@@ -613,7 +626,7 @@ function get_user_download_count() {
                 </div>
 
                 <!-- 分页 -->
-                <?php if (($total ?? 0) > $limit): ?>
+                <?php if (!empty($query) && ($total ?? 0) > $limit): ?>
                 <div class="flex flex-wrap justify-center items-center gap-2 mb-8">
                     <?php
                     $total_pages = ceil($total / $limit);
@@ -798,6 +811,3 @@ function get_user_download_count() {
     </script>
 </body>
 </html>
-
-
-

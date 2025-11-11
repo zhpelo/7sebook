@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require 'config.php';
+
 // =============== 配置区 ===============
 $inputDir      = __DIR__.'/test'; // 修改为你的输入目录
 $successDir    = __DIR__.'/ebook';  //处理完成移入的目录
