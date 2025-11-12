@@ -10,8 +10,11 @@ $duplicateDir  = __DIR__.'/duplicate'; // 建议用英文路径
 $coverDir      = __DIR__.'/covers';  //封面存储的目录
 
 $supportedExts = [
-    'epub', 'mobi', 'azw3', 'fb2', 'djvu',
-    'doc', 'docx', 'odt', 'odf', 'chm'
+    'azw', 'azw1', 'azw3', 'azw4', 'cb7', 'cbc', 'cbr', 'cbz', 'chm', 
+    'docx', 'epub', 'fb2', 'fbz', 'html', 'htmlz', 'imp', 'kepub', 
+    'lit', 'lrf', 'lrx', 'mobi', 'odt', 'oebzip', 'opf', 'pdb', 'pdf', 
+    'pml', 'pmlz', 'pobi', 'prc', 'rar', 'rb', 'rtf', 'snb', 'tpz', 
+    'txt', 'txtz', 'updb', 'zip'
 ];
 // =====================================
 
@@ -41,13 +44,13 @@ foreach ($iterator as $file) {
             $files[] = $file->getPathname();
         }
     }
+    if (count($files) >= 1) {
+        break;
+    }   
 }
 
-echo "找到 " . count($files) . " 个电子书文件\n";
-// 只取前 30 个文件
-$limitedFiles = array_slice($files, 0, 30);
 
-foreach ($limitedFiles as $filePath) {
+foreach ($files as $filePath) {
     echo "处理: $filePath\n";
     
     if (!is_readable($filePath)) {
@@ -92,6 +95,23 @@ foreach ($limitedFiles as $filePath) {
     $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
     
 
+    print_r([
+            $md5,
+            $filename,
+            $ext,
+            $size,
+            $meta['title'] ?? null,
+            $meta['authors'] ?? null,
+            $meta['languages'] ?? null,
+            $meta['published_at'] ?? null,
+            $meta['identifiers'] ?? null,
+            $meta['description'] ?? null,
+            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null,
+            str_replace(__DIR__, '', $destPath),
+    ]);
+
+    echo "\n";
+
     // 插入数据库
     $stmt = $pdo->prepare("
     INSERT INTO books (
@@ -114,7 +134,7 @@ foreach ($limitedFiles as $filePath) {
             $meta['languages'] ?? null,
             $meta['published_at'] ?? null,
             $meta['identifiers'] ?? null,
-            $meta['summary'] ?? null,
+            $meta['description'] ?? null,
             str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null,
             str_replace(__DIR__, '', $destPath),
         ]);
@@ -170,7 +190,7 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
         'languages'    => null,
         'published_at' => null,   // 注意：这是 DATETIME，不是字符串
         'identifiers'  => null,
-        'summary'      => null,
+        'description'      => null,
         'cover_path'   => null,
     ];
 
@@ -205,7 +225,7 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
         } elseif (preg_match('/^Identifiers$/i', $key)) {
             $meta['identifiers'] = $value; // 如 "mobi-asin:B00T5Q28CI"
         } elseif (preg_match('/^Comments$/i', $key)) {
-            $meta['summary'] = $value;
+            $meta['description'] = strip_tags($value);
         }
     }
     
