@@ -265,15 +265,42 @@ if ($action === 'download' && $book_id && is_logged_in()) {
         
         // 如果文件存在，提供下载
         if (file_exists($filepath)) {
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: attachment; filename="' . basename($filepath) . '"');
+            switch ($book['file_format']) {
+                case 'pdf':
+                    header('Content-Type: application/pdf');
+                    break;
+                case 'epub':
+                    header('Content-Type: application/epub+zip');
+                    break;
+                case 'mobi':
+                    header('Content-Type: application/x-mobipocket-ebook');
+                    break;
+                case 'azw3':
+                    header('Content-Type: application/vnd.amazon.ebook');
+                    break;
+                case 'djvu':
+                    header('Content-Type: image/vnd.djvu');
+                    break;
+                case 'txt':
+                    header('Content-Type: text/plain');
+                    break;
+                case 'zip':
+                    header('Content-Type: application/zip');
+                    break;
+                case 'rar':
+                    header('Content-Type: application/vnd.rar');
+                    break;
+                default:
+                    header('Content-Type: application/octet-stream');
+            }
+            
+            header('Content-Disposition: attachment; filename="' . basename( $book['file_name'] ) . '"');
             header('Content-Length: ' . filesize($filepath));
             readfile($filepath);
             exit;
         } else {
             // 如果文件不存在，返回错误
             $download_error = '文件不存在';
-            die("文件不存在");
         }
     }
 }
