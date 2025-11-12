@@ -90,6 +90,10 @@ foreach ($files as $filePath) {
         echo "❌ 元数据提取失败\n";
         continue;
     }
+
+    print_r($meta);
+
+    echo "\n";
     
     $newName = $md5 . '.' . $ext;
     $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
