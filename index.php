@@ -598,7 +598,7 @@ function get_user_download_count() {
                             </div>
                             <div class="bg-purple-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">ISBN</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['identifiers'] ?? ""); ?>页</div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['identifiers'] ?? ""); ?></div>
                             </div>
                         </div>
                         
@@ -945,10 +945,13 @@ function get_user_download_count() {
                     </div>
                     
                     <div class="text-center mt-4">
-                        <p class="text-gray-600">还没有账号？</p>
-                        <button onclick="switchToRegister()" class="text-blue-600 hover:text-blue-800 font-medium">
+                        <p class="text-gray-600">
+                            还没有账号？ 
+                            <button onclick="switchToRegister()" class="text-blue-600 hover:text-blue-800 font-medium">
                             立即注册
-                        </button>
+                            </button>
+                        </p>
+                        
                     </div>
                 </div>
                 
