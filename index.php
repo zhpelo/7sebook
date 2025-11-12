@@ -449,6 +449,27 @@ function highlight_matches($text, $query) {
     return $result;
 }
 
+/**
+ * 将字节大小转换为人类可读的格式
+ */
+function format_file_size($bytes) {
+    if ($bytes === null || $bytes === '') {
+        return '未知';
+    }
+    
+    $bytes = floatval($bytes);
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    
+    for ($i = 0; $i < count($units); $i++) {
+        if ($bytes < 1024) {
+            return round($bytes, 2) . ' ' . $units[$i];
+        }
+        $bytes /= 1024;
+    }
+    
+    return round($bytes, 2) . ' PB';
+}
+
 // 构建分页URL
 function build_page_url($query, $type, $new_page) {
     $params = ['q' => $query, 'type' => $type, 'page' => $new_page];
@@ -609,7 +630,7 @@ function get_user_download_count() {
                                     </div>
                                     <div>
                                         <div class="text-sm text-gray-500">大小</div>
-                                        <div class="font-semibold"><?php echo htmlspecialchars($book['file_size']); ?></div>
+                                        <div class="font-semibold"><?php echo format_file_size($book['file_size']); ?></div>
                                     </div>
                                     <div>
                                         <div class="text-sm text-gray-500">语言</div>
@@ -755,6 +776,11 @@ function get_user_download_count() {
                                 <?php echo empty($query) ? htmlspecialchars($book['author']) : highlight_matches(htmlspecialchars($book['author']), $query ?? ''); ?>
                             </p>
                             <p class="text-gray-500 text-sm line-clamp-3"><?php echo empty($query) ? htmlspecialchars(mb_substr($book['description'] ?? "", 0, 100) . '...') : highlight_matches(htmlspecialchars(mb_substr($book['description'] ?? "", 0, 100) . '...'), $query ?? ''); ?></p>
+                            <!-- 添加文件格式和大小信息 -->
+                            <div class="mt-2 flex justify-between items-center text-xs">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded"><?php echo htmlspecialchars($book['file_format']); ?></span>
+                                <span class="text-gray-500"><?php echo format_file_size($book['file_size']); ?></span>
+                            </div>
                             <?php if (isset($book['relevance_score']) && !empty($query)): ?>
                                 <div class="mt-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded inline-block">
                                     相关度: <?php echo round($book['relevance_score'], 1); ?>
