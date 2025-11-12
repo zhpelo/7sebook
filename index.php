@@ -106,6 +106,120 @@ if (isset($_GET['logout'])) {
     exit;
 }
 
+// 忘记密码处理
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'forgot_password') {
+    $email = trim($_POST['email'] ?? '');
+    
+    if ($email) {
+        // 检查邮箱是否存在
+        $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user) {
+            // 生成重置令牌
+            $token = bin2hex(random_bytes(32));
+            $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+            
+            // 保存令牌到数据库
+            $stmt = $pdo->prepare("INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?) 
+                                      ON DUPLICATE KEY UPDATE token = VALUES(token), expires_at = VALUES(expires_at)");
+            $stmt->execute([$email, $token, $expires]);
+            
+            // 发送重置邮件
+            $reset_link = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] . "?action=reset_password&token=" . $token;
+            
+            $subject = "七秒电子书 - 密码重置";
+            $message = "您好！\n\n您收到这封邮件是因为您请求重置密码。\n\n请点击下面的链接重置您的密码：\n" . $reset_link . "\n\n如果您没有请求重置密码，请忽略这封邮件。\n\n此链接将在1小时后过期。";
+            $headers = "From: no-reply@7sebook.com\r\n";
+            $headers .= "Reply-To: no-reply@7sebook.com\r\n";
+            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            
+            // 使用 mail() 函数发送邮件，并检查返回值
+            $mail_sent = mail($email, $subject, $message, $headers);
+            
+            if ($mail_sent) {
+                $forgot_password_message = '密码重置链接已发送到您的邮箱，请检查。';
+            } else {
+                // 提供更具体的错误信息
+                $forgot_password_error = '邮件发送失败，请检查您的邮箱地址是否正确，或稍后再试。';
+            }
+        } else {
+            $forgot_password_message = '如果该邮箱存在于我们的系统中，您将收到密码重置链接。';
+        }
+    } else {
+        $forgot_password_error = '请输入邮箱地址。';
+    }
+}
+
+// 显示重置密码表单
+if (isset($_GET['action']) && $_GET['action'] === 'reset_password') {
+    $token = $_GET['token'] ?? '';
+    if ($token) {
+        // 验证令牌
+        $stmt = $pdo->prepare("SELECT email, expires_at FROM password_resets WHERE token = ?");
+        $stmt->execute([$token]);
+        $reset_request = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($reset_request) {
+            // 检查令牌是否过期
+            if (strtotime($reset_request['expires_at']) > time()) {
+                $reset_token = $token;
+                $reset_email = $reset_request['email'];
+            } else {
+                $reset_password_error = '密码重置链接已过期，请重新申请。';
+                // 删除过期的令牌
+                $stmt = $pdo->prepare("DELETE FROM password_resets WHERE token = ?");
+                $stmt->execute([$token]);
+            }
+        } else {
+            $reset_password_error = '无效的密码重置链接。';
+        }
+    } else {
+        $reset_password_error = '缺少必要的参数。';
+    }
+}
+
+// 处理密码重置
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reset_password') {
+    $token = $_POST['token'] ?? '';
+    $password = $_POST['password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
+    
+    if ($token && $password && $confirm_password) {
+        if ($password === $confirm_password) {
+            // 验证令牌
+            $stmt = $pdo->prepare("SELECT email, expires_at FROM password_resets WHERE token = ?");
+            $stmt->execute([$token]);
+            $reset_request = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($reset_request) {
+                // 检查令牌是否过期
+                if (strtotime($reset_request['expires_at']) > time()) {
+                    // 更新密码
+                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = ?");
+                    $stmt->execute([$password_hash, $reset_request['email']]);
+                    
+                    // 删除已使用的令牌
+                    $stmt = $pdo->prepare("DELETE FROM password_resets WHERE token = ?");
+                    $stmt->execute([$token]);
+                    
+                    $reset_password_success = '密码重置成功，您可以使用新密码登录了。';
+                } else {
+                    $reset_password_error = '密码重置链接已过期，请重新申请。';
+                }
+            } else {
+                $reset_password_error = '无效的密码重置链接。';
+            }
+        } else {
+            $reset_password_error = '两次输入的密码不一致。';
+        }
+    } else {
+        $reset_password_error = '请填写所有必填字段。';
+    }
+}
+
 // 获取当前操作
 $action = $_GET['action'] ?? 'search';
 $book_id = $_GET['id'] ?? null;
@@ -676,6 +790,68 @@ function get_user_download_count() {
     </div>
     <?php endif; ?>
 
+    <!-- 添加重置密码表单 -->
+    <?php if (isset($_GET['action']) && $_GET['action'] === 'reset_password'): ?>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold">重置密码</h3>
+                    <a href="./" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+                
+                <?php if (isset($reset_password_error)): ?>
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                        <?php echo htmlspecialchars($reset_password_error); ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (isset($reset_password_success)): ?>
+                    <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
+                        <?php echo htmlspecialchars($reset_password_success); ?>
+                    </div>
+                    <div class="text-center">
+                        <a href="./" class="text-blue-600 hover:text-blue-800 font-medium">返回首页</a>
+                    </div>
+                <?php elseif (isset($reset_token) && isset($reset_email)): ?>
+                    <form method="POST" class="space-y-4">
+                        <input type="hidden" name="action" value="reset_password">
+                        <input type="hidden" name="token" value="<?php echo htmlspecialchars($reset_token); ?>">
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">邮箱</label>
+                            <input type="email" value="<?php echo htmlspecialchars($reset_email); ?>" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="password">新密码</label>
+                            <input type="password" name="password" id="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="confirm_password">确认新密码</label>
+                            <input type="password" name="confirm_password" id="confirm_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+                            重置密码
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                        无效的重置请求
+                    </div>
+                    <div class="text-center">
+                        <a href="./" class="text-blue-600 hover:text-blue-800 font-medium">返回首页</a>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- 登录/注册模态框 -->
     <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
@@ -711,9 +887,45 @@ function get_user_download_count() {
                     </form>
                     
                     <div class="text-center mt-4">
+                        <button onclick="showForgotPasswordForm()" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            忘记密码？
+                        </button>
+                    </div>
+                    
+                    <div class="text-center mt-4">
                         <p class="text-gray-600">还没有账号？</p>
                         <button onclick="switchToRegister()" class="text-blue-600 hover:text-blue-800 font-medium">
                             立即注册
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 忘记密码表单 -->
+                <div id="forgotPasswordForm" class="space-y-4 hidden">
+                    <?php if (isset($forgot_password_error)): ?>
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                            <?php echo htmlspecialchars($forgot_password_error); ?>
+                        </div>
+                    <?php elseif (isset($forgot_password_message)): ?>
+                        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+                            <?php echo htmlspecialchars($forgot_password_message); ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <form method="POST">
+                        <input type="hidden" name="action" value="forgot_password">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="forgot_email">邮箱地址</label>
+                            <input type="email" name="email" id="forgot_email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+                            发送重置链接
+                        </button>
+                    </form>
+                    
+                    <div class="text-center mt-4">
+                        <button onclick="switchToLogin()" class="text-blue-600 hover:text-blue-800 font-medium">
+                            返回登录
                         </button>
                     </div>
                 </div>
@@ -780,12 +992,21 @@ function get_user_download_count() {
             document.getElementById('authModalTitle').textContent = '用户登录';
             document.getElementById('loginForm').classList.remove('hidden');
             document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('forgotPasswordForm').classList.add('hidden');
         }
         
         function switchToRegister() {
             document.getElementById('authModalTitle').textContent = '用户注册';
             document.getElementById('registerForm').classList.remove('hidden');
             document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('forgotPasswordForm').classList.add('hidden');
+        }
+        
+        function showForgotPasswordForm() {
+            document.getElementById('authModalTitle').textContent = '忘记密码';
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('forgotPasswordForm').classList.remove('hidden');
         }
         
         // 点击背景关闭模态框
@@ -803,9 +1024,12 @@ function get_user_download_count() {
         });
         
         // 如果URL中有错误参数，自动打开登录模态框
-        <?php if (isset($login_error) || isset($register_error) || isset($register_success)): ?>
+        <?php if (isset($login_error) || isset($register_error) || isset($register_success) || isset($forgot_password_error) || isset($forgot_password_message)): ?>
             window.onload = function() {
                 openAuthModal('login');
+                <?php if (isset($forgot_password_error) || isset($forgot_password_message)): ?>
+                showForgotPasswordForm();
+                <?php endif; ?>
             };
         <?php endif; ?>
     </script>
