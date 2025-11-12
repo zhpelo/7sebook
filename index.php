@@ -594,11 +594,11 @@ function get_user_download_count() {
                             </div>
                             <div class="bg-yellow-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">出版日期</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['formatted_date'] ?? ""); ?></div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['published_at'] ?? ""); ?></div>
                             </div>
                             <div class="bg-purple-50 p-3 rounded-lg">
-                                <div class="text-sm text-gray-500">页数</div>
-                                <div class="font-semibold"><?php echo $book['page_count']; ?>页</div>
+                                <div class="text-sm text-gray-500">ISBN</div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['identifiers'] ?? ""); ?>页</div>
                             </div>
                         </div>
                         
