@@ -255,7 +255,7 @@ if ($action === 'download' && $book_id && is_logged_in()) {
         // 记录下载日志
         log_download($user_id, $book_id);
 
-        $stmt = $pdo->prepare(" SELECT file_path FROM books  WHERE id = ? ");
+        $stmt = $pdo->prepare(" SELECT * FROM books  WHERE id = ? ");
         $stmt->execute([$book_id]);
         $book = $stmt->fetch(PDO::FETCH_ASSOC);
 
