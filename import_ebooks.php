@@ -112,6 +112,8 @@ foreach ($files as $filePath) {
 
     echo "\n";
 
+    die();
+
     // 插入数据库
     $stmt = $pdo->prepare("
     INSERT INTO books (
