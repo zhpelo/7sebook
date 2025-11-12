@@ -60,8 +60,8 @@ foreach ($files as $filePath) {
 
     $fileInfo = new SplFileInfo($filePath);
     $ext = strtolower($fileInfo->getExtension());
-    $filename = $fileInfo->getFilename();
-    $size = $fileInfo->getSize();
+    $file_name = $fileInfo->getFilename();
+    $file_size = $fileInfo->getSize();
 
     // 计算 MD5
     $md5 = hash_file('md5', $filePath);
@@ -75,7 +75,7 @@ foreach ($files as $filePath) {
     $stmt->execute([$md5]);
     if ($stmt->fetch()) {
         echo "⚠️ MD5 已存在，移动到重复目录\n";
-        $dest = $duplicateDir . DIRECTORY_SEPARATOR . $filename;
+        $dest = $duplicateDir . DIRECTORY_SEPARATOR . $file_name;
         if (@rename($filePath, $dest) || copyAndDelete($filePath, $dest)) {
             echo "✅ 移动到 $dest\n";
         } else {
@@ -96,19 +96,11 @@ foreach ($files as $filePath) {
     
 
     print_r([
-            $md5,
-            $filename,
-            $ext,
-            $size,
-            $meta['title'] ?? null,
-            $meta['authors'] ?? null,
-            $meta['languages'] ?? null,
-            $meta['published_at'] ?? null,
-            $meta['identifiers'] ?? null,
-            $meta['description'] ?? null,
-            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null,
-            str_replace(__DIR__, '', $destPath),
-    ]);
+            $md5, $file_name, $ext, $file_size,
+            $meta['title'],     $meta['authors'],       $meta['description'],
+            $meta['languages'], $meta['publisher'],     $meta['published_at'], $meta['identifiers'],
+            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null, str_replace(__DIR__, '', $destPath),
+        ]);
 
     echo "\n";
 
@@ -118,27 +110,21 @@ foreach ($files as $filePath) {
     $stmt = $pdo->prepare("
     INSERT INTO books (
         file_md5, file_name, file_format, file_size, 
-        title, author, languages, published_at, identifiers, description, 
+        title, author, description, 
+        languages, publisher, published_at, identifiers, 
         cover_url,file_path,created_at)
     VALUES (
         ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?,
-        ?,?, NOW())
+        ?, ?, ?, 
+        ?, ?, ?, ?,
+        ?, ?, NOW())
     ");
     try {
         $stmt->execute([
-            $md5,
-            $filename,
-            $ext,
-            $size,
-            $meta['title'] ?? null,
-            $meta['authors'] ?? null,
-            $meta['languages'] ?? null,
-            $meta['published_at'] ?? null,
-            $meta['identifiers'] ?? null,
-            $meta['description'] ?? null,
-            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null,
-            str_replace(__DIR__, '', $destPath),
+            $md5, $file_name, $ext, $file_size,
+            $meta['title'],     $meta['authors'],       $meta['description'],
+            $meta['languages'], $meta['publisher'],     $meta['published_at'], $meta['identifiers'],
+            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null, str_replace(__DIR__, '', $destPath),
         ]);
     } catch (PDOException $e) {
         echo "❌ 插入数据库失败: " . $e->getMessage() . "\n";
