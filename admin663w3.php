@@ -369,7 +369,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] ? '电子书系统后台管理' : '管理员登录'; ?></title>
+    <title><?php echo isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] ? '七秒电子书后台管理' : '管理员登录'; ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -503,7 +503,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             <div class="p-6">
                 <h1 class="text-xl font-bold mb-6 flex items-center">
                     <i class="fas fa-book mr-2"></i>
-                    后台管理
+                    七秒后台
                 </h1>
             </div>
             
@@ -719,14 +719,89 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     </form>
                 </div>
                 
+            <?php elseif ($action === 'add_book_form'): ?>
+                <!-- 添加电子书页面 -->
+                <div class="admin-card">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">添加电子书</h2>
+                        <a href="?action=books" class="admin-btn admin-btn-primary">
+                            <i class="fas fa-arrow-left mr-2"></i> 返回列表
+                        </a>
+                    </div>
+                    
+                    <form method="POST" class="max-w-2xl">
+                        <input type="hidden" name="form_action" value="add_book">
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">标题 *</label>
+                            <input type="text" name="title" class="admin-form-input" required>
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">作者 *</label>
+                            <input type="text" name="author" class="admin-form-input" required>
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">简介</label>
+                            <textarea name="description" class="admin-form-input" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">类别</label>
+                            <input type="text" name="category" class="admin-form-input">
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">出版社</label>
+                            <input type="text" name="publisher" class="admin-form-input">
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">页数</label>
+                            <input type="number" name="page_count" class="admin-form-input">
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">文件名</label>
+                            <input type="text" name="file_name" class="admin-form-input">
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">文件路径</label>
+                            <input type="text" name="file_path" class="admin-form-input">
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">文件大小</label>
+                            <input type="text" name="file_size" class="admin-form-input">
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">文件格式</label>
+                            <input type="text" name="file_format" class="admin-form-input">
+                        </div>
+                        
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">标签（逗号分隔）</label>
+                            <input type="text" name="tags" class="admin-form-input" placeholder="标签1,标签2,标签3">
+                        </div>
+                        
+                        <div class="flex justify-end space-x-2">
+                            <a href="?action=books" class="admin-btn admin-btn-danger">取消</a>
+                            <button type="submit" class="admin-btn admin-btn-primary">添加电子书</button>
+                        </div>
+                    </form>
+                </div>
+                
             <?php elseif ($action === 'books'): ?>
                 <!-- 电子书管理 -->
                 <div class="admin-card">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold">电子书管理</h2>
-                        <button onclick="openModal('addBookModal')" class="admin-btn admin-btn-primary">
+                        <a href="?action=add_book_form" class="admin-btn admin-btn-primary">
                             <i class="fas fa-plus mr-2"></i> 添加电子书
-                        </button>
+                        </a>
                     </div>
                     
                     <div class="overflow-x-auto">
@@ -988,76 +1063,6 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     <div class="flex justify-end space-x-2">
                         <button type="button" onclick="closeModal('editUserModal')" class="admin-btn admin-btn-danger">取消</button>
                         <button type="submit" class="admin-btn admin-btn-primary">更新</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- 添加电子书模态框 -->
-        <div id="addBookModal" class="admin-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); z-index:1000;">
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; width:90%; max-width:600px;">
-                <h3 class="text-lg font-semibold mb-4">添加电子书</h3>
-                <form method="POST">
-                    <input type="hidden" name="form_action" value="add_book">
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">标题 *</label>
-                        <input type="text" name="title" class="admin-form-input" required>
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">作者 *</label>
-                        <input type="text" name="author" class="admin-form-input" required>
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">简介</label>
-                        <textarea name="description" class="admin-form-input" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">类别</label>
-                        <input type="text" name="category" class="admin-form-input">
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">出版社</label>
-                        <input type="text" name="publisher" class="admin-form-input">
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">页数</label>
-                        <input type="number" name="page_count" class="admin-form-input">
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">文件名</label>
-                        <input type="text" name="file_name" class="admin-form-input">
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">文件路径</label>
-                        <input type="text" name="file_path" class="admin-form-input">
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">文件大小</label>
-                        <input type="text" name="file_size" class="admin-form-input">
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">文件格式</label>
-                        <input type="text" name="file_format" class="admin-form-input">
-                    </div>
-                    
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">标签（逗号分隔）</label>
-                        <input type="text" name="tags" class="admin-form-input" placeholder="标签1,标签2,标签3">
-                    </div>
-                    
-                    <div class="flex justify-end space-x-2">
-                        <button type="button" onclick="closeModal('addBookModal')" class="admin-btn admin-btn-danger">取消</button>
-                        <button type="submit" class="admin-btn admin-btn-primary">添加</button>
                     </div>
                 </form>
             </div>
