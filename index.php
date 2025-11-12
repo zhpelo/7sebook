@@ -775,7 +775,6 @@ function get_user_download_count() {
                                 <i class="fas fa-user text-sm mr-2"></i>
                                 <?php echo empty($query) ? htmlspecialchars($book['author']) : highlight_matches(htmlspecialchars($book['author']), $query ?? ''); ?>
                             </p>
-                            <p class="text-gray-500 text-sm line-clamp-3"><?php echo empty($query) ? htmlspecialchars(mb_substr($book['description'] ?? "", 0, 100) . '...') : highlight_matches(htmlspecialchars(mb_substr($book['description'] ?? "", 0, 100) . '...'), $query ?? ''); ?></p>
                             <!-- 添加文件格式和大小信息 -->
                             <div class="mt-2 flex justify-between items-center text-xs">
                                 <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded"><?php echo htmlspecialchars($book['file_format']); ?></span>
