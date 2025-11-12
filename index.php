@@ -759,9 +759,9 @@ function get_user_download_count() {
                     <?php foreach ($books as $book): ?>
                     <a href="?action=detail&id=<?php echo $book['id']; ?>">
                     <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                        <div class="bg-gray-100 flex items-center justify-center">
+                        <div class="bg-gray-100 flex items-center justify-center aspect-[2/3]">
                             <?php if ($book['cover_url']): ?>
-                                <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="aspect-[2/3] w-full h-full object-cover">
+                                <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
                             <?php else: ?>
                                 <div class="text-gray-400 text-center p-4">
                                     <i class="fas fa-book text-4xl mb-2"></i>
