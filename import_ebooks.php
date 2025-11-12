@@ -44,7 +44,7 @@ foreach ($iterator as $file) {
             $files[] = $file->getPathname();
         }
     }
-    if (count($files) >= 1) {
+    if (count($files) >= 10) {
         break;
     }   
 }
@@ -91,9 +91,9 @@ foreach ($files as $filePath) {
         continue;
     }
 
-    print_r($meta);
+    // print_r($meta);
 
-    echo "\n";
+    // echo "\n";
     
     $newName = $md5 . '.' . $ext;
     $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
@@ -108,7 +108,6 @@ foreach ($files as $filePath) {
 
     echo "\n";
 
-    die();
 
     // 插入数据库
     $stmt = $pdo->prepare("
