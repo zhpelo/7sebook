@@ -338,7 +338,7 @@ if ($action === 'search') {
         $total = $stmt->fetchColumn();
 
         // 获取分页数据
-        $sql = "SELECT DISTINCT b.id, b.title, b.author, b.description, b.cover_url, b.publish_date, b.category,
+        $sql = "SELECT DISTINCT b.id, b.title, b.author, b.description, b.cover_url, b.published_at, b.file_format, b.file_size,
                 ({$search_conditions['relevance']}) as relevance_score
                 FROM books b 
                 WHERE {$search_conditions['where']} 
