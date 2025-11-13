@@ -44,7 +44,7 @@ foreach ($iterator as $file) {
             $files[] = $file->getPathname();
         }
     }
-    if (count($files) >= 20) {
+    if (count($files) >= 10) {
         break;
     }   
 }
@@ -149,8 +149,9 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
         mkdir($coverDir, 0755, true);
     }
 
-    // 执行 ebook-meta（带环境变量）
-    $cmd = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta ' . escapeshellarg($filePath) . ' 2>&1';
+    // 整合元数据提取和封面提取为一步
+    $coverPath = $coverDir . DIRECTORY_SEPARATOR . $md5 . '.jpg';
+    $cmd = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta --get-cover=' . escapeshellarg($coverPath) . ' ' . escapeshellarg($filePath) . ' 2>/dev/null';
     $output = shell_exec($cmd);
 
     if (empty($output) || strpos($output, 'Traceback') !== false) {
@@ -205,13 +206,8 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
         }
     }
     
-    // === 提取封面 ===
-    $coverPath = $coverDir . DIRECTORY_SEPARATOR . $md5 . '.jpg';
-    $cmdCover = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta --get-cover=' . escapeshellarg($coverPath) . ' ' . escapeshellarg($filePath) . ' 2>/dev/null';
-    
-    exec($cmdCover, $out, $ret);
-
-    if ($ret === 0 && is_file($coverPath) && filesize($coverPath) > 1024) {
+    // 检查封面是否成功提取
+    if (is_file($coverPath) && filesize($coverPath) > 1024) {
         $meta['cover_path'] = $coverPath;
     } else {
         if (is_file($coverPath)) unlink($coverPath);
