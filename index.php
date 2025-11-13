@@ -483,6 +483,28 @@ function format_file_size($bytes) {
     return round($bytes, 2) . ' PB';
 }
 
+/**
+ * 格式化作者信息，将多个作者分割并添加搜索链接
+ */
+function format_authors($authors) {
+    if (empty($authors)) {
+        return '佚名';
+    }
+    
+    // 使用多种分隔符分割作者名称
+    $author_list = preg_split('/(;|,|；|，|、)/', $authors);
+    $formatted_authors = [];
+    
+    foreach ($author_list as $author) {
+        $author = trim($author);
+        if (!empty($author)) {
+            $formatted_authors[] = '<a href="?q=' . urlencode($author) . '&type=author" class="text-blue-600 hover:text-blue-800 hover:underline">' . htmlspecialchars($author) . '</a>';
+        }
+    }
+    
+    return implode(', ', $formatted_authors);
+}
+
 // 构建分页URL
 function build_page_url($query, $type, $new_page) {
     $params = ['q' => $query, 'type' => $type, 'page' => $new_page];
@@ -752,7 +774,7 @@ function update_user_email($user_id, $new_email) {
                         <h1 class="text-3xl font-bold text-gray-800 mb-4"><?php echo htmlspecialchars($book['title']); ?></h1>
                         <div class="flex items-center mb-4">
                             <i class="fas fa-user text-gray-500 mr-2"></i>
-                            <span class="text-lg text-gray-600"><?php echo htmlspecialchars($book['author']); ?></span>
+                            <span class="text-lg text-gray-600"><?php echo format_authors($book['author']); ?></span>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4 mb-6">
