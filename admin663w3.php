@@ -6,7 +6,7 @@ require 'config.php';
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
+} catch (PDOException $e) {
     die('数据库连接失败');
 }
 
@@ -27,12 +27,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();
             $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             // 获取用户总数
             $total_users = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
             $total_pages = ceil($total_users / $limit);
             break;
-            
+
         case 'books':
             // 获取电子书列表
             $stmt = $pdo->prepare("
@@ -48,12 +48,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();
             $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             // 获取电子书总数
             $total_books = $pdo->query("SELECT COUNT(*) FROM books")->fetchColumn();
             $total_pages = ceil($total_books / $limit);
             break;
-            
+
         case 'downloads':
             // 获取下载记录
             $stmt = $pdo->prepare("
@@ -68,12 +68,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();
             $downloads = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             // 获取下载记录总数
             $total_downloads = $pdo->query("SELECT COUNT(*) FROM download_logs")->fetchColumn();
             $total_pages = ceil($total_downloads / $limit);
             break;
-            
+
         case 'tags':
             // 获取标签列表
             $stmt = $pdo->prepare("
@@ -88,19 +88,19 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();
             $tags = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             // 获取标签总数
             $total_tags = $pdo->query("SELECT COUNT(DISTINCT tag_name) FROM book_tags")->fetchColumn();
             $total_pages = ceil($total_tags / $limit);
             break;
-            
+
         case 'admin_settings':
             // 获取当前管理员信息
             $stmt = $pdo->prepare("SELECT id, username, email FROM users WHERE role = 'admin' LIMIT 1");
             $stmt->execute();
             $admin_user = $stmt->fetch(PDO::FETCH_ASSOC);
             break;
-            
+
         case 'edit_book':
             // 编辑电子书页面
             $book_id = intval($_GET['id'] ?? 0);
@@ -115,7 +115,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 ");
                 $stmt->execute([$book_id]);
                 $book = $stmt->fetch(PDO::FETCH_ASSOC);
-                
+
                 if (!$book) {
                     $error = '电子书不存在';
                     $action = 'books';
@@ -125,7 +125,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 $action = 'books';
             }
             break;
-            
+
         default:
             // 仪表盘 - 显示统计信息
             $stats = [
@@ -134,7 +134,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 'total_downloads' => $pdo->query("SELECT COUNT(*) FROM download_logs")->fetchColumn(),
                 'today_downloads' => $pdo->query("SELECT COUNT(*) FROM download_logs WHERE DATE(download_time) = CURDATE()")->fetchColumn()
             ];
-            
+
             // 获取近7天用户增长数据
             $stmt = $pdo->prepare("
                 SELECT 
@@ -147,7 +147,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             ");
             $stmt->execute();
             $userGrowthData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             // 构建完整的7天数据
             $dailyUserCounts = [];
             $dates = [];
@@ -156,12 +156,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 $dates[] = $date;
                 $dailyUserCounts[$date] = 0;
             }
-            
+
             // 填充实际数据
             foreach ($userGrowthData as $data) {
                 $dailyUserCounts[$data['date']] = (int)$data['user_count'];
             }
-            
+
             // 获取近7天电子书增长数据
             $stmt = $pdo->prepare("
                 SELECT 
@@ -174,14 +174,14 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             ");
             $stmt->execute();
             $bookGrowthData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             // 构建完整的7天电子书数据
             $dailyBookCounts = [];
             for ($i = 6; $i >= 0; $i--) {
                 $date = date('Y-m-d', strtotime("-$i days"));
                 $dailyBookCounts[$date] = 0;
             }
-            
+
             // 填充实际数据
             foreach ($bookGrowthData as $data) {
                 $dailyBookCounts[$data['date']] = (int)$data['book_count'];
@@ -191,14 +191,14 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
     // 处理表单提交
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $post_action = $_POST['form_action'] ?? '';
-        
+
         switch ($post_action) {
             case 'add_user':
                 $username = trim($_POST['username'] ?? '');
                 $password = $_POST['password'] ?? '';
                 $email = trim($_POST['email'] ?? '');
                 $role = $_POST['role'] ?? 'user';
-                
+
                 if ($username && $password && $email) {
                     $password_hash = password_hash($password, PASSWORD_DEFAULT);
                     $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, role) VALUES (?, ?, ?, ?)");
@@ -208,14 +208,14 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     $error = '请填写完整信息';
                 }
                 break;
-                
+
             case 'edit_user':
                 $user_id = intval($_POST['user_id'] ?? 0);
                 $username = trim($_POST['username'] ?? '');
                 $email = trim($_POST['email'] ?? '');
                 $role = $_POST['role'] ?? 'user';
                 $new_password = $_POST['password'] ?? '';
-                
+
                 if ($user_id && $username && $email) {
                     if ($new_password) {
                         // 如果提供了新密码，则更新密码
@@ -232,7 +232,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     $error = '请填写完整信息';
                 }
                 break;
-                
+
             case 'delete_user':
                 $user_id = intval($_POST['user_id'] ?? 0);
                 if ($user_id) {
@@ -241,7 +241,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     $message = '用户删除成功';
                 }
                 break;
-                
+
             case 'add_book':
                 $title = trim($_POST['title'] ?? '');
                 $author = trim($_POST['author'] ?? '');
@@ -254,16 +254,16 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 $file_size = trim($_POST['file_size'] ?? '');
                 $file_format = trim($_POST['file_format'] ?? '');
                 $tags = trim($_POST['tags'] ?? '');
-                
+
                 if ($title && $author) {
                     $stmt = $pdo->prepare("
                         INSERT INTO books (title, author, description, category, publisher, page_count, file_name, file_path, file_size, file_format, created_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                     ");
                     $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format]);
-                    
+
                     $book_id = $pdo->lastInsertId();
-                    
+
                     // 添加标签
                     if ($tags) {
                         $tag_list = array_filter(array_map('trim', explode(',', $tags)));
@@ -274,13 +274,13 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             }
                         }
                     }
-                    
+
                     $message = '电子书添加成功';
                 } else {
                     $error = '请填写必填字段（标题、作者）';
                 }
                 break;
-                
+
             case 'edit_book':
                 $book_id = intval($_POST['book_id'] ?? 0);
                 $title = trim($_POST['title'] ?? '');
@@ -294,7 +294,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 $file_size = trim($_POST['file_size'] ?? '');
                 $file_format = trim($_POST['file_format'] ?? '');
                 $tags = trim($_POST['tags'] ?? '');
-                
+
                 if ($book_id && $title && $author) {
                     $stmt = $pdo->prepare("
                         UPDATE books 
@@ -303,11 +303,11 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                         WHERE id = ?
                     ");
                     $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format, $book_id]);
-                    
+
                     // 删除原有标签
                     $stmt = $pdo->prepare("DELETE FROM book_tags WHERE book_id = ?");
                     $stmt->execute([$book_id]);
-                    
+
                     // 添加新标签
                     if ($tags) {
                         $tag_list = array_filter(array_map('trim', explode(',', $tags)));
@@ -318,7 +318,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             }
                         }
                     }
-                    
+
                     $message = '电子书信息更新成功';
                     // 重定向到书籍列表页面
                     header('Location: ?action=books');
@@ -327,7 +327,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     $error = '请填写必填字段（标题、作者）';
                 }
                 break;
-                
+
             case 'delete_book':
                 $book_id = intval($_POST['book_id'] ?? 0);
                 if ($book_id) {
@@ -336,11 +336,11 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     $message = '电子书删除成功';
                 }
                 break;
-                
+
             case 'add_tag':
                 $book_id = intval($_POST['book_id'] ?? 0);
                 $tag_name = trim($_POST['tag_name'] ?? '');
-                
+
                 if ($book_id && $tag_name) {
                     $stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name) VALUES (?, ?)");
                     $stmt->execute([$book_id, $tag_name]);
@@ -349,7 +349,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     $error = '请选择图书并输入标签名称';
                 }
                 break;
-                
+
             case 'delete_tag':
                 $tag_id = intval($_POST['tag_id'] ?? 0);
                 if ($tag_id) {
@@ -358,13 +358,13 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     $message = '标签删除成功';
                 }
                 break;
-                
+
             case 'update_admin':
                 $admin_id = intval($_POST['admin_id'] ?? 0);
                 $username = trim($_POST['username'] ?? '');
                 $email = trim($_POST['email'] ?? '');
                 $password = $_POST['password'] ?? '';
-                
+
                 if ($admin_id && $username && $email) {
                     if ($password) {
                         // 如果提供了新密码，则更新密码
@@ -386,7 +386,8 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
     }
 
     // 获取分页URL
-    function build_page_url($action, $new_page) {
+    function build_page_url($action, $new_page)
+    {
         $params = ['action' => $action, 'page' => $new_page];
         return '?' . http_build_query($params);
     }
@@ -395,12 +396,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
-        
+
         if ($username && $password) {
             $stmt = $pdo->prepare("SELECT id, username, password_hash FROM users WHERE username = ? AND role = 'admin'");
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if ($user && password_verify($password, $user['password_hash'])) {
                 $_SESSION['admin_logged_in'] = true;
                 $_SESSION['admin_username'] = $user['username'];
@@ -418,6 +419,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
 
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -433,13 +435,31 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             background: #2d3748;
             color: white;
             overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 100;
         }
         
+        @media (max-width: 768px) {
+            .admin-sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .admin-sidebar.active {
+                transform: translateX(0);
+            }
+        }
+
         .admin-content {
             margin-left: 250px;
             padding: 20px;
         }
         
+        @media (max-width: 768px) {
+            .admin-content {
+                margin-left: 0;
+            }
+        }
+
         .admin-card {
             background: white;
             border-radius: 8px;
@@ -447,28 +467,28 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             padding: 20px;
             margin-bottom: 20px;
         }
-        
+
         .admin-table {
             width: 100%;
             border-collapse: collapse;
         }
-        
+
         .admin-table th,
         .admin-table td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
         }
-        
+
         .admin-table th {
             background-color: #f7fafc;
             font-weight: 600;
         }
-        
+
         .admin-table tr:hover {
             background-color: #f7fafc;
         }
-        
+
         .admin-btn {
             padding: 8px 16px;
             border-radius: 4px;
@@ -477,44 +497,44 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             text-decoration: none;
             display: inline-block;
         }
-        
+
         .admin-btn-primary {
             background-color: #3182ce;
             color: white;
         }
-        
+
         .admin-btn-primary:hover {
             background-color: #2c5282;
         }
-        
+
         .admin-btn-danger {
             background-color: #e53e3e;
             color: white;
         }
-        
+
         .admin-btn-danger:hover {
             background-color: #c53030;
         }
-        
+
         .admin-btn-success {
             background-color: #38a169;
             color: white;
         }
-        
+
         .admin-btn-success:hover {
             background-color: #2f855a;
         }
-        
+
         .admin-form-group {
             margin-bottom: 15px;
         }
-        
+
         .admin-form-label {
             display: block;
             margin-bottom: 5px;
             font-weight: 500;
         }
-        
+
         .admin-form-input {
             width: 100%;
             padding: 8px 12px;
@@ -522,7 +542,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             border-radius: 4px;
             font-size: 14px;
         }
-        
+
         .admin-form-select {
             width: 100%;
             padding: 8px 12px;
@@ -530,7 +550,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             border-radius: 4px;
             font-size: 14px;
         }
-        
+
         .login-container {
             display: flex;
             justify-content: center;
@@ -538,7 +558,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             min-height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        
+
         .login-card {
             background: white;
             padding: 40px;
@@ -547,19 +567,59 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             width: 100%;
             max-width: 400px;
         }
+        
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 99;
+            background: #2d3748;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar-toggle {
+                display: block;
+            }
+        }
+        
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
     </style>
 </head>
+
 <body class="bg-gray-100">
     <?php if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']): ?>
+        <!-- 侧边栏切换按钮 -->
+        <button class="sidebar-toggle" id="sidebarToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+        
+        <!-- 遮罩层 -->
+        <div class="overlay" id="overlay"></div>
+        
         <!-- 侧边栏 -->
-        <div class="admin-sidebar">
+        <div class="admin-sidebar" id="adminSidebar">
             <div class="p-6">
                 <h1 class="text-xl font-bold mb-6 flex items-center">
                     <i class="fas fa-book mr-2"></i>
                     七秒后台
                 </h1>
             </div>
-            
+
             <div class="px-4">
                 <a href="?action=dashboard" class="block py-3 px-4 rounded hover:bg-gray-700 <?php echo $action === 'dashboard' ? 'bg-gray-700' : ''; ?>">
                     <i class="fas fa-tachometer-alt mr-2"></i> 仪表盘
@@ -592,7 +652,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     <?php echo htmlspecialchars($message); ?>
                 </div>
             <?php endif; ?>
-            
+
             <?php if (isset($error)): ?>
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                     <?php echo htmlspecialchars($error); ?>
@@ -603,7 +663,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 <!-- 仪表盘 -->
                 <div class="admin-card">
                     <h2 class="text-2xl font-bold mb-6">系统概览</h2>
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                         <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
                             <div class="text-3xl font-bold text-blue-600"><?php echo $stats['total_users']; ?></div>
@@ -622,13 +682,20 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             <div class="text-gray-600">今日下载</div>
                         </div>
                     </div>
-                    
-                    <!-- 近7天用户增长和电子书增长趋势图 -->
-                    <div class="bg-white p-6 rounded-lg border mb-8">
-                        <h3 class="text-lg font-semibold mb-4">近7天增长趋势</h3>
-                        <canvas id="growthChart" height="100"></canvas>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <!-- 近7天用户增长趋势图 -->
+                        <div class="bg-white p-6 rounded-lg border">
+                            <h3 class="text-lg font-semibold mb-4">近7天用户增长趋势</h3>
+                            <canvas id="userGrowthChart" height="100"></canvas>
+                        </div>
+
+                        <!-- 近7天电子书增长趋势图 -->
+                        <div class="bg-white p-6 rounded-lg border">
+                            <h3 class="text-lg font-semibold mb-4">近7天电子书增长趋势</h3>
+                            <canvas id="bookGrowthChart" height="100"></canvas>
+                        </div>
                     </div>
-                    
+
                     <div class="bg-white p-6 rounded-lg border">
                         <h3 class="text-lg font-semibold mb-4">系统信息</h3>
                         <ul class="space-y-2">
@@ -639,11 +706,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                         </ul>
                     </div>
                 </div>
-                
+
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
-                        var ctx = document.getElementById('growthChart').getContext('2d');
-                        var chart = new Chart(ctx, {
+                        // 用户增长趋势图
+                        var userCtx = document.getElementById('userGrowthChart').getContext('2d');
+                        var userChart = new Chart(userCtx, {
                             type: 'line',
                             data: {
                                 labels: <?php echo json_encode($dates); ?>,
@@ -652,15 +720,34 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                                     data: <?php echo json_encode(array_values($dailyUserCounts)); ?>,
                                     borderColor: 'rgb(54, 162, 235)',
                                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                                    AxisID: 'left-y-axis',
                                     tension: 0.1,
                                     fill: true
-                                }, {
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            precision: 0
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        // 电子书增长趋势图
+                        var bookCtx = document.getElementById('bookGrowthChart').getContext('2d');
+                        var bookChart = new Chart(bookCtx, {
+                            type: 'line',
+                            data: {
+                                labels: <?php echo json_encode($dates); ?>,
+                                datasets: [{
                                     label: '新增电子书数',
                                     data: <?php echo json_encode(array_values($dailyBookCounts)); ?>,
                                     borderColor: 'rgb(255, 99, 132)',
                                     backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                                    yAxisID: 'right-y-axis',
                                     tension: 0.1,
                                     fill: true
                                 }]
@@ -679,7 +766,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                         });
                     });
                 </script>
-                
+
             <?php elseif ($action === 'users'): ?>
                 <!-- 用户管理 -->
                 <div class="admin-card">
@@ -689,7 +776,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             <i class="fas fa-plus mr-2"></i> 添加用户
                         </button>
                     </div>
-                    
+
                     <div class="overflow-x-auto">
                         <table class="admin-table">
                             <thead>
@@ -704,41 +791,41 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             </thead>
                             <tbody>
                                 <?php foreach ($users as $user): ?>
-                                <tr>
-                                    <td><?php echo $user['id']; ?></td>
-                                    <td><?php echo htmlspecialchars($user['username']); ?></td>
-                                    <td><?php echo htmlspecialchars($user['email']); ?></td>
-                                    <td><?php echo $user['role'] === 'admin' ? '管理员' : '普通用户'; ?></td>
-                                    <td><?php echo $user['created_at']; ?></td>
-                                    <td>
-                                        <button onclick="openEditUserModal(<?php echo $user['id']; ?>, '<?php echo addslashes($user['username']); ?>', '<?php echo addslashes($user['email']); ?>', '<?php echo $user['role']; ?>')" class="admin-btn admin-btn-success mr-2">
-                                            <i class="fas fa-edit mr-1"></i> 编辑
-                                        </button>
-                                        <form method="POST" class="inline" onsubmit="return confirm('确定要删除此用户吗？')">
-                                            <input type="hidden" name="form_action" value="delete_user">
-                                            <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
-                                            <button type="submit" class="admin-btn admin-btn-danger">
-                                                <i class="fas fa-trash mr-1"></i> 删除
+                                    <tr>
+                                        <td><?php echo $user['id']; ?></td>
+                                        <td><?php echo htmlspecialchars($user['username']); ?></td>
+                                        <td><?php echo htmlspecialchars($user['email']); ?></td>
+                                        <td><?php echo $user['role'] === 'admin' ? '管理员' : '普通用户'; ?></td>
+                                        <td><?php echo $user['created_at']; ?></td>
+                                        <td>
+                                            <button onclick="openEditUserModal(<?php echo $user['id']; ?>, '<?php echo addslashes($user['username']); ?>', '<?php echo addslashes($user['email']); ?>', '<?php echo $user['role']; ?>')" class="admin-btn admin-btn-success mr-2">
+                                                <i class="fas fa-edit mr-1"></i> 编辑
                                             </button>
-                                        </form>
-                                    </td>
-                                </tr>
+                                            <form method="POST" class="inline" onsubmit="return confirm('确定要删除此用户吗？')">
+                                                <input type="hidden" name="form_action" value="delete_user">
+                                                <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
+                                                <button type="submit" class="admin-btn admin-btn-danger">
+                                                    <i class="fas fa-trash mr-1"></i> 删除
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- 分页 -->
                     <?php if ($total_pages > 1): ?>
-                    <div class="flex justify-center mt-6">
-                        <nav class="flex items-center space-x-2">
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                <a href="<?php echo build_page_url('users', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                        </nav>
-                    </div>
+                        <div class="flex justify-center mt-6">
+                            <nav class="flex items-center space-x-2">
+                                <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+                                    <a href="<?php echo build_page_url('users', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
+                                        <?php echo $i; ?>
+                                    </a>
+                                <?php endfor; ?>
+                            </nav>
+                        </div>
                     <?php endif; ?>
                 </div>
 
@@ -751,73 +838,73 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             <i class="fas fa-arrow-left mr-2"></i> 返回列表
                         </a>
                     </div>
-                    
+
                     <form method="POST" class="max-w-2xl">
                         <input type="hidden" name="form_action" value="edit_book">
                         <input type="hidden" name="book_id" value="<?php echo $book['id']; ?>">
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">标题 *</label>
                             <input type="text" name="title" class="admin-form-input" value="<?php echo htmlspecialchars($book['title']); ?>" required>
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">作者 *</label>
                             <input type="text" name="author" class="admin-form-input" value="<?php echo htmlspecialchars($book['author']); ?>" required>
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">简介</label>
                             <textarea name="description" class="admin-form-input" rows="3"><?php echo htmlspecialchars($book['description'] ?? ''); ?></textarea>
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">类别</label>
                             <input type="text" name="category" class="admin-form-input" value="<?php echo htmlspecialchars($book['category'] ?? ''); ?>">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">出版社</label>
                             <input type="text" name="publisher" class="admin-form-input" value="<?php echo htmlspecialchars($book['publisher'] ?? ''); ?>">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">页数</label>
                             <input type="number" name="page_count" class="admin-form-input" value="<?php echo $book['page_count'] ?? 0; ?>">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">文件名</label>
                             <input type="text" name="file_name" class="admin-form-input" value="<?php echo htmlspecialchars($book['file_name'] ?? ''); ?>">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">文件路径</label>
                             <input type="text" name="file_path" class="admin-form-input" value="<?php echo htmlspecialchars($book['file_path'] ?? ''); ?>">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">文件大小</label>
                             <input type="text" name="file_size" class="admin-form-input" value="<?php echo htmlspecialchars($book['file_size'] ?? ''); ?>">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">文件格式</label>
                             <input type="text" name="file_format" class="admin-form-input" value="<?php echo htmlspecialchars($book['file_format'] ?? ''); ?>">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">标签（逗号分隔）</label>
                             <input type="text" name="tags" class="admin-form-input" value="<?php echo htmlspecialchars($book['tags'] ?? ''); ?>" placeholder="标签1,标签2,标签3">
                         </div>
-                        
+
                         <div class="flex justify-end space-x-2">
                             <a href="?action=books" class="admin-btn admin-btn-danger">取消</a>
                             <button type="submit" class="admin-btn admin-btn-primary">更新电子书</button>
                         </div>
                     </form>
                 </div>
-                
+
             <?php elseif ($action === 'add_book_form'): ?>
                 <!-- 添加电子书页面 -->
                 <div class="admin-card">
@@ -827,72 +914,72 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             <i class="fas fa-arrow-left mr-2"></i> 返回列表
                         </a>
                     </div>
-                    
+
                     <form method="POST" class="max-w-2xl">
                         <input type="hidden" name="form_action" value="add_book">
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">标题 *</label>
                             <input type="text" name="title" class="admin-form-input" required>
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">作者 *</label>
                             <input type="text" name="author" class="admin-form-input" required>
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">简介</label>
                             <textarea name="description" class="admin-form-input" rows="3"></textarea>
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">类别</label>
                             <input type="text" name="category" class="admin-form-input">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">出版社</label>
                             <input type="text" name="publisher" class="admin-form-input">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">页数</label>
                             <input type="number" name="page_count" class="admin-form-input">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">文件名</label>
                             <input type="text" name="file_name" class="admin-form-input">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">文件路径</label>
                             <input type="text" name="file_path" class="admin-form-input">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">文件大小</label>
                             <input type="text" name="file_size" class="admin-form-input">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">文件格式</label>
                             <input type="text" name="file_format" class="admin-form-input">
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">标签（逗号分隔）</label>
                             <input type="text" name="tags" class="admin-form-input" placeholder="标签1,标签2,标签3">
                         </div>
-                        
+
                         <div class="flex justify-end space-x-2">
                             <a href="?action=books" class="admin-btn admin-btn-danger">取消</a>
                             <button type="submit" class="admin-btn admin-btn-primary">添加电子书</button>
                         </div>
                     </form>
                 </div>
-                
+
             <?php elseif ($action === 'books'): ?>
                 <!-- 电子书管理 -->
                 <div class="admin-card">
@@ -902,7 +989,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             <i class="fas fa-plus mr-2"></i> 添加电子书
                         </a>
                     </div>
-                    
+
                     <div class="overflow-x-auto">
                         <table class="admin-table">
                             <thead>
@@ -919,51 +1006,51 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             </thead>
                             <tbody>
                                 <?php foreach ($books as $book): ?>
-                                <tr>
-                                    <td><?php echo $book['id']; ?></td>
-                                    <td><?php echo htmlspecialchars($book['title']); ?></td>
-                                    <td><?php echo htmlspecialchars($book['author']); ?></td>
-                                    <td><?php echo htmlspecialchars($book['category'] ?? ''); ?></td>
-                                    <td><?php echo htmlspecialchars($book['file_format']); ?></td>
-                                    <td><?php echo htmlspecialchars($book['file_size']); ?></td>
-                                    <td><?php echo htmlspecialchars($book['tags'] ?? ''); ?></td>
-                                    <td>
-                                        <a href="?action=edit_book&id=<?php echo $book['id']; ?>" class="admin-btn admin-btn-success mr-2">
-                                            <i class="fas fa-edit mr-1"></i> 编辑
-                                        </a>
-                                        <form method="POST" class="inline" onsubmit="return confirm('确定要删除此电子书吗？')">
-                                            <input type="hidden" name="form_action" value="delete_book">
-                                            <input type="hidden" name="book_id" value="<?php echo $book['id']; ?>">
-                                            <button type="submit" class="admin-btn admin-btn-danger">
-                                                <i class="fas fa-trash mr-1"></i> 删除
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td><?php echo $book['id']; ?></td>
+                                        <td><?php echo htmlspecialchars($book['title']); ?></td>
+                                        <td><?php echo htmlspecialchars($book['author']); ?></td>
+                                        <td><?php echo htmlspecialchars($book['category'] ?? ''); ?></td>
+                                        <td><?php echo htmlspecialchars($book['file_format']); ?></td>
+                                        <td><?php echo htmlspecialchars($book['file_size']); ?></td>
+                                        <td><?php echo htmlspecialchars($book['tags'] ?? ''); ?></td>
+                                        <td>
+                                            <a href="?action=edit_book&id=<?php echo $book['id']; ?>" class="admin-btn admin-btn-success mr-2">
+                                                <i class="fas fa-edit mr-1"></i> 编辑
+                                            </a>
+                                            <form method="POST" class="inline" onsubmit="return confirm('确定要删除此电子书吗？')">
+                                                <input type="hidden" name="form_action" value="delete_book">
+                                                <input type="hidden" name="book_id" value="<?php echo $book['id']; ?>">
+                                                <button type="submit" class="admin-btn admin-btn-danger">
+                                                    <i class="fas fa-trash mr-1"></i> 删除
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- 分页 -->
                     <?php if ($total_pages > 1): ?>
-                    <div class="flex justify-center mt-6">
-                        <nav class="flex items-center space-x-2">
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                <a href="<?php echo build_page_url('books', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                        </nav>
-                    </div>
+                        <div class="flex justify-center mt-6">
+                            <nav class="flex items-center space-x-2">
+                                <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+                                    <a href="<?php echo build_page_url('books', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
+                                        <?php echo $i; ?>
+                                    </a>
+                                <?php endfor; ?>
+                            </nav>
+                        </div>
                     <?php endif; ?>
                 </div>
-                
+
             <?php elseif ($action === 'downloads'): ?>
                 <!-- 下载记录 -->
                 <div class="admin-card">
                     <h2 class="text-2xl font-bold mb-6">下载记录</h2>
-                    
+
                     <div class="overflow-x-auto">
                         <table class="admin-table">
                             <thead>
@@ -976,31 +1063,31 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             </thead>
                             <tbody>
                                 <?php foreach ($downloads as $download): ?>
-                                <tr>
-                                    <td><?php echo $download['id']; ?></td>
-                                    <td><?php echo htmlspecialchars($download['username'] ?? '游客'); ?></td>
-                                    <td><?php echo htmlspecialchars($download['title'] ?? '未知'); ?></td>
-                                    <td><?php echo $download['download_time']; ?></td>
-                                </tr>
+                                    <tr>
+                                        <td><?php echo $download['id']; ?></td>
+                                        <td><?php echo htmlspecialchars($download['username'] ?? '游客'); ?></td>
+                                        <td><?php echo htmlspecialchars($download['title'] ?? '未知'); ?></td>
+                                        <td><?php echo $download['download_time']; ?></td>
+                                    </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- 分页 -->
                     <?php if ($total_pages > 1): ?>
-                    <div class="flex justify-center mt-6">
-                        <nav class="flex items-center space-x-2">
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                <a href="<?php echo build_page_url('downloads', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                        </nav>
-                    </div>
+                        <div class="flex justify-center mt-6">
+                            <nav class="flex items-center space-x-2">
+                                <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+                                    <a href="<?php echo build_page_url('downloads', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
+                                        <?php echo $i; ?>
+                                    </a>
+                                <?php endfor; ?>
+                            </nav>
+                        </div>
                     <?php endif; ?>
                 </div>
-                
+
             <?php elseif ($action === 'tags'): ?>
                 <!-- 标签管理 -->
                 <div class="admin-card">
@@ -1010,7 +1097,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             <i class="fas fa-plus mr-2"></i> 添加标签
                         </button>
                     </div>
-                    
+
                     <div class="overflow-x-auto">
                         <table class="admin-table">
                             <thead>
@@ -1024,64 +1111,64 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             </thead>
                             <tbody>
                                 <?php foreach ($tags as $tag): ?>
-                                <tr>
-                                    <td><?php echo $tag['id']; ?></td>
-                                    <td><?php echo htmlspecialchars($tag['tag_name']); ?></td>
-                                    <td><?php echo htmlspecialchars($tag['book_title'] ?? '无'); ?></td>
-                                    <td><?php echo $tag['usage_count']; ?></td>
-                                    <td>
-                                        <form method="POST" class="inline" onsubmit="return confirm('确定要删除此标签吗？')">
-                                            <input type="hidden" name="form_action" value="delete_tag">
-                                            <input type="hidden" name="tag_id" value="<?php echo $tag['id']; ?>">
-                                            <button type="submit" class="admin-btn admin-btn-danger">
-                                                <i class="fas fa-trash mr-1"></i> 删除
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td><?php echo $tag['id']; ?></td>
+                                        <td><?php echo htmlspecialchars($tag['tag_name']); ?></td>
+                                        <td><?php echo htmlspecialchars($tag['book_title'] ?? '无'); ?></td>
+                                        <td><?php echo $tag['usage_count']; ?></td>
+                                        <td>
+                                            <form method="POST" class="inline" onsubmit="return confirm('确定要删除此标签吗？')">
+                                                <input type="hidden" name="form_action" value="delete_tag">
+                                                <input type="hidden" name="tag_id" value="<?php echo $tag['id']; ?>">
+                                                <button type="submit" class="admin-btn admin-btn-danger">
+                                                    <i class="fas fa-trash mr-1"></i> 删除
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- 分页 -->
                     <?php if ($total_pages > 1): ?>
-                    <div class="flex justify-center mt-6">
-                        <nav class="flex items-center space-x-2">
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                <a href="<?php echo build_page_url('tags', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                        </nav>
-                    </div>
+                        <div class="flex justify-center mt-6">
+                            <nav class="flex items-center space-x-2">
+                                <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+                                    <a href="<?php echo build_page_url('tags', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
+                                        <?php echo $i; ?>
+                                    </a>
+                                <?php endfor; ?>
+                            </nav>
+                        </div>
                     <?php endif; ?>
                 </div>
-                
+
             <?php elseif ($action === 'admin_settings'): ?>
                 <!-- 管理员设置 -->
                 <div class="admin-card">
                     <h2 class="text-2xl font-bold mb-6">管理员设置</h2>
-                    
+
                     <form method="POST" class="max-w-md">
                         <input type="hidden" name="form_action" value="update_admin">
                         <input type="hidden" name="admin_id" value="<?php echo $admin_user['id']; ?>">
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">用户名</label>
                             <input type="text" name="username" class="admin-form-input" value="<?php echo htmlspecialchars($admin_user['username']); ?>" required>
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">邮箱</label>
                             <input type="email" name="email" class="admin-form-input" value="<?php echo htmlspecialchars($admin_user['email']); ?>" required>
                         </div>
-                        
+
                         <div class="admin-form-group">
                             <label class="admin-form-label">新密码（留空则不修改）</label>
                             <input type="password" name="password" class="admin-form-input">
                         </div>
-                        
+
                         <button type="submit" class="admin-btn admin-btn-primary">
                             <i class="fas fa-save mr-2"></i> 更新管理员信息
                         </button>
@@ -1096,22 +1183,22 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 <h3 class="text-lg font-semibold mb-4">添加用户</h3>
                 <form method="POST">
                     <input type="hidden" name="form_action" value="add_user">
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">用户名</label>
                         <input type="text" name="username" class="admin-form-input" required>
                     </div>
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">邮箱</label>
                         <input type="email" name="email" class="admin-form-input" required>
                     </div>
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">密码</label>
                         <input type="password" name="password" class="admin-form-input" required>
                     </div>
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">角色</label>
                         <select name="role" class="admin-form-select">
@@ -1119,7 +1206,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             <option value="admin">管理员</option>
                         </select>
                     </div>
-                    
+
                     <div class="flex justify-end space-x-2">
                         <button type="button" onclick="closeModal('addUserModal')" class="admin-btn admin-btn-danger">取消</button>
                         <button type="submit" class="admin-btn admin-btn-primary">添加</button>
@@ -1135,22 +1222,22 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 <form method="POST">
                     <input type="hidden" name="form_action" value="edit_user">
                     <input type="hidden" name="user_id" id="edit_user_id">
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">用户名</label>
                         <input type="text" name="username" id="edit_username" class="admin-form-input" required>
                     </div>
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">邮箱</label>
                         <input type="email" name="email" id="edit_email" class="admin-form-input" required>
                     </div>
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">密码（留空则不修改）</label>
                         <input type="password" name="password" class="admin-form-input">
                     </div>
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">角色</label>
                         <select name="role" id="edit_role" class="admin-form-select">
@@ -1158,7 +1245,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                             <option value="admin">管理员</option>
                         </select>
                     </div>
-                    
+
                     <div class="flex justify-end space-x-2">
                         <button type="button" onclick="closeModal('editUserModal')" class="admin-btn admin-btn-danger">取消</button>
                         <button type="submit" class="admin-btn admin-btn-primary">更新</button>
@@ -1173,17 +1260,17 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 <h3 class="text-lg font-semibold mb-4">添加标签</h3>
                 <form method="POST">
                     <input type="hidden" name="form_action" value="add_tag">
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">图书ID</label>
                         <input type="number" name="book_id" class="admin-form-input" required>
                     </div>
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">标签名称</label>
                         <input type="text" name="tag_name" class="admin-form-input" required>
                     </div>
-                    
+
                     <div class="flex justify-end space-x-2">
                         <button type="button" onclick="closeModal('addTagModal')" class="admin-btn admin-btn-danger">取消</button>
                         <button type="submit" class="admin-btn admin-btn-primary">添加</button>
@@ -1197,11 +1284,11 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             function openModal(modalId) {
                 document.getElementById(modalId).style.display = 'block';
             }
-            
+
             function closeModal(modalId) {
                 document.getElementById(modalId).style.display = 'none';
             }
-            
+
             // 编辑用户模态框
             function openEditUserModal(id, username, email, role) {
                 document.getElementById('edit_user_id').value = id;
@@ -1210,7 +1297,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 document.getElementById('edit_role').value = role;
                 openModal('editUserModal');
             }
-            
+
             // ESC键关闭模态框
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
@@ -1219,6 +1306,17 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                         modal.style.display = 'none';
                     });
                 }
+            });
+            
+            // 侧边栏切换
+            document.getElementById('sidebarToggle').addEventListener('click', function() {
+                document.getElementById('adminSidebar').classList.toggle('active');
+                document.getElementById('overlay').classList.toggle('active');
+            });
+            
+            document.getElementById('overlay').addEventListener('click', function() {
+                document.getElementById('adminSidebar').classList.remove('active');
+                document.getElementById('overlay').classList.remove('active');
             });
         </script>
     <?php else: ?>
@@ -1229,26 +1327,26 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                     <i class="fas fa-book text-5xl text-blue-600 mb-4"></i>
                     <h1 class="text-2xl font-bold text-gray-800">管理员登录</h1>
                 </div>
-                
+
                 <?php if (isset($login_error)): ?>
                     <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                         <?php echo htmlspecialchars($login_error); ?>
                     </div>
                 <?php endif; ?>
-                
+
                 <form method="POST">
                     <input type="hidden" name="login" value="1">
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">用户名</label>
                         <input type="text" name="username" class="admin-form-input" required>
                     </div>
-                    
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">密码</label>
                         <input type="password" name="password" class="admin-form-input" required>
                     </div>
-                    
+
                     <button type="submit" class="w-full admin-btn admin-btn-primary py-3">
                         <i class="fas fa-sign-in-alt mr-2"></i> 登录
                     </button>
@@ -1266,4 +1364,5 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
     }
     ?>
 </body>
+
 </html>
