@@ -792,7 +792,7 @@ $supportedExts = [
                             <?php else: ?>
                                 <div class="text-gray-400 text-center p-4">
                                     <i class="fas fa-book text-6xl mb-4"></i>
-                                    <div class="text-xl"><?php echo htmlspecialchars(mb_substr($book['title'], 0, 8)); ?></div>
+                                    <div class="text-xl"><?php echo $book['title']; ?></div>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -999,7 +999,7 @@ $supportedExts = [
                             <?php else: ?>
                                 <div class="text-gray-400 text-center p-4">
                                     <i class="fas fa-book text-4xl mb-2"></i>
-                                    <div class="text-sm"><?php echo htmlspecialchars(mb_substr($book['title'], 0, 8)); ?></div>
+                                    <div class="text-sm"><?php echo $book['title']; ?></div>
                                 </div>
                             <?php endif; ?>
                         </div>
