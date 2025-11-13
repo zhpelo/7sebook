@@ -377,7 +377,7 @@ if ($action === 'search') {
     } else {
         // 没有搜索关键词时，显示最新的100本书
         $start_time = microtime(true);
-        $sql = "SELECT * FROM books ORDER by id Desc LIMIT 100 ";
+        $sql = "SELECT * FROM `books` WHERE `cover_url` !='' ORDER by id Desc LIMIT 100";
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
