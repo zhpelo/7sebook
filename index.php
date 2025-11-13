@@ -511,6 +511,32 @@ function get_user_download_count() {
     $stmt->execute(['user_id' => $user_id]);
     return $stmt->fetchColumn();
 }
+
+// 获取用户信息
+function get_user_info($user_id) {
+    global $pdo;
+    
+    $stmt = $pdo->prepare("SELECT id, username, email, created_at FROM users WHERE id = ?");
+    $stmt->execute([$user_id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// 更新用户密码
+function update_user_password($user_id, $new_password) {
+    global $pdo;
+    
+    $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+    $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+    return $stmt->execute([$password_hash, $user_id]);
+}
+
+// 更新用户邮箱
+function update_user_email($user_id, $new_email) {
+    global $pdo;
+    
+    $stmt = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
+    return $stmt->execute([$user_id, $new_email]);
+}
 ?>
 
 <!DOCTYPE html>
@@ -556,7 +582,9 @@ function get_user_download_count() {
                 <div class="flex items-center">
                     <div class="mr-4 text-sm">
                         <?php if (is_logged_in()): ?>
-                            <span>欢迎, <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong></span>
+                            <a href="?action=profile" class="hover:underline">
+                                <span>欢迎, <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong></span>
+                            </a>
                             <?php if (get_user_role() === 'user'): ?>
                                 <span class="ml-2 text-xs bg-green-500 px-2 py-1 rounded">已下载: <?php echo get_user_download_count(); ?>/5</span>
                             <?php endif; ?>
@@ -571,7 +599,138 @@ function get_user_download_count() {
         </div>
     </nav>
 
-    <?php if ($action === 'detail' && $book): ?>
+    <?php if (isset($_GET['action']) && $_GET['action'] === 'profile' && is_logged_in()): ?>
+    <!-- 个人资料页面 -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-800">个人资料</h1>
+                    <a href="./" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-arrow-left mr-1"></i> 返回首页
+                    </a>
+                </div>
+                
+                <?php
+                $user_info = get_user_info(get_user_id());
+                $profile_message = '';
+                $profile_error = '';
+                
+                // 处理表单提交
+                if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
+                    $current_password = $_POST['current_password'] ?? '';
+                    $new_password = $_POST['new_password'] ?? '';
+                    $confirm_password = $_POST['confirm_password'] ?? '';
+                    $email = trim($_POST['email'] ?? '');
+                    
+                    // 验证当前密码
+                    $stmt = $pdo->prepare("SELECT password_hash FROM users WHERE id = ?");
+                    $stmt->execute([get_user_id()]);
+                    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($user && password_verify($current_password, $user['password_hash'])) {
+                        // 更新邮箱（如果提供了新邮箱）
+                        if ($email && $email !== $user_info['email']) {
+                            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                                if (update_user_email(get_user_id(), $email)) {
+                                    $profile_message = '邮箱更新成功。';
+                                    $user_info['email'] = $email; // 更新显示的邮箱
+                                } else {
+                                    $profile_error = '邮箱更新失败，请稍后再试。';
+                                }
+                            } else {
+                                $profile_error = '请输入有效的邮箱地址。';
+                            }
+                        }
+                        
+                        // 更新密码（如果提供了新密码）
+                        if ($new_password) {
+                            if (strlen($new_password) < 6) {
+                                $profile_error = '密码至少需要6个字符。';
+                            } elseif ($new_password !== $confirm_password) {
+                                $profile_error = '新密码与确认密码不匹配。';
+                            } else {
+                                if (update_user_password(get_user_id(), $new_password)) {
+                                    $profile_message = '密码更新成功。';
+                                } else {
+                                    $profile_error = '密码更新失败，请稍后再试。';
+                                }
+                            }
+                        } else if (!$profile_message && !$profile_error) {
+                            // 只显示一条消息
+                            $profile_message = '资料更新成功。';
+                        }
+                    } else {
+                        $profile_error = '当前密码错误。';
+                    }
+                }
+                ?>
+                
+                <?php if ($profile_message): ?>
+                    <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+                        <?php echo htmlspecialchars($profile_message); ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if ($profile_error): ?>
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+                        <?php echo htmlspecialchars($profile_error); ?>
+                    </div>
+                <?php endif; ?>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-700 mb-4">基本信息</h2>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="mb-3">
+                                <label class="block text-gray-600 text-sm mb-1">用户名</label>
+                                <div class="font-medium"><?php echo htmlspecialchars($user_info['username']); ?></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-gray-600 text-sm mb-1">注册时间</label>
+                                <div class="font-medium"><?php echo htmlspecialchars($user_info['created_at']); ?></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-700 mb-4">修改资料</h2>
+                        <form method="POST" class="space-y-4">
+                            <input type="hidden" name="action" value="update_profile">
+                            
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="email">邮箱地址</label>
+                                <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($user_info['email']); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="current_password">当前密码 *</label>
+                                <input type="password" name="current_password" id="current_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="new_password">新密码</label>
+                                <input type="password" name="new_password" id="new_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <p class="text-gray-500 text-xs mt-1">至少6个字符，留空则不更改</p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="confirm_password">确认新密码</label>
+                                <input type="password" name="confirm_password" id="confirm_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            
+                            <div class="pt-4">
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+                                    更新资料
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php elseif ($action === 'detail' && $book): ?>
     <!-- 详情页 -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="bg-white rounded-lg shadow-md overflow-hidden">
