@@ -211,7 +211,7 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
             // 输入: 2010-09-01T00:00:00+00:00
             $dt = date_create($value);
             if ($dt) {
-                $meta['published_at'] = $dt->format('Y-m');
+                $meta['published_at'] = $dt->format('Y-m-d');
             }
         } elseif (preg_match('/^Identifiers$/i', $key)) {
             $meta['identifiers'] = $value; // 如 "mobi-asin:B00T5Q28CI"
