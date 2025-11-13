@@ -807,25 +807,25 @@ $supportedExts = [
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div class="bg-blue-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">类别</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['category'] ?? "" ); ?></div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['category'] ?? "未归类" ); ?></div>
                             </div>
                             <div class="bg-green-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">出版社</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['publisher'] ?? "" ); ?></div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['publisher'] ?? "暂无资料" ); ?></div>
                             </div>
                             <div class="bg-yellow-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">出版日期</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['published_at'] ?? ""); ?></div>
+                                <div class="font-semibold"><?php echo substr($book['published_at'] ?? "暂无资料", 0, 7); ?></div>
                             </div>
                             <div class="bg-purple-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">ISBN</div>
-                                <div class="font-semibold"><?php echo htmlspecialchars($book['identifiers'] ?? ""); ?></div>
+                                <div class="font-semibold"><?php echo htmlspecialchars($book['identifiers'] ?? "暂无资料"); ?></div>
                             </div>
                         </div>
                         
                         <div class="mb-6">
                             <h2 class="text-xl font-semibold text-gray-800 mb-2">简介</h2>
-                            <p class="text-gray-600"><?php echo htmlspecialchars($book['description'] ?? ""); ?></p>
+                            <p class="text-gray-600"><?php echo htmlspecialchars($book['description'] ?? "暂无资料"); ?></p>
                         </div>
                         
                         <div class="mb-6">
