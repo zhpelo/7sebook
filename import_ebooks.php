@@ -44,7 +44,7 @@ foreach ($iterator as $file) {
             $files[] = $file->getPathname();
         }
     }
-    if (count($files) >= 10) {
+    if (count($files) >= 20) {
         break;
     }   
 }
@@ -91,24 +91,9 @@ foreach ($files as $filePath) {
         continue;
     }
 
-    // print_r($meta);
-
-    // echo "\n";
-    
     $newName = $md5 . '.' . $ext;
     $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
     
-
-    print_r([
-            $md5, $file_name, $ext, $file_size,
-            $meta['title'],     $meta['authors'],       $meta['description'],
-            $meta['languages'], $meta['publisher'],     $meta['published_at'], $meta['identifiers'],
-            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null, str_replace(__DIR__, '', $destPath),
-        ]);
-
-    echo "\n";
-
-
     // 插入数据库
     $stmt = $pdo->prepare("
     INSERT INTO books (
@@ -220,9 +205,6 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
         }
     }
     
- 
-    
-
     // === 提取封面 ===
     $coverPath = $coverDir . DIRECTORY_SEPARATOR . $md5 . '.jpg';
     $cmdCover = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta --get-cover=' . escapeshellarg($coverPath) . ' ' . escapeshellarg($filePath) . ' 2>/dev/null';
