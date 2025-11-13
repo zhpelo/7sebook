@@ -815,7 +815,7 @@ $supportedExts = [
                             </div>
                             <div class="bg-yellow-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">出版日期</div>
-                                <div class="font-semibold"><?php echo substr($book['published_at'], 0, 7) ?? "暂无资料"; ?></div>
+                                <div class="font-semibold"><?php echo substr($book['published_at'] ?? "", 0, 7) ?? "暂无资料"; ?></div>
                             </div>
                             <div class="bg-purple-50 p-3 rounded-lg">
                                 <div class="text-sm text-gray-500">ISBN</div>
