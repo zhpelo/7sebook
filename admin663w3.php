@@ -134,6 +134,58 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 'total_downloads' => $pdo->query("SELECT COUNT(*) FROM download_logs")->fetchColumn(),
                 'today_downloads' => $pdo->query("SELECT COUNT(*) FROM download_logs WHERE DATE(download_time) = CURDATE()")->fetchColumn()
             ];
+            
+            // 获取近7天用户增长数据
+            $stmt = $pdo->prepare("
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as user_count
+                FROM users 
+                WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                GROUP BY DATE(created_at)
+                ORDER BY DATE(created_at)
+            ");
+            $stmt->execute();
+            $userGrowthData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // 构建完整的7天数据
+            $dailyUserCounts = [];
+            $dates = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $date = date('Y-m-d', strtotime("-$i days"));
+                $dates[] = $date;
+                $dailyUserCounts[$date] = 0;
+            }
+            
+            // 填充实际数据
+            foreach ($userGrowthData as $data) {
+                $dailyUserCounts[$data['date']] = (int)$data['user_count'];
+            }
+            
+            // 获取近7天电子书增长数据
+            $stmt = $pdo->prepare("
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as book_count
+                FROM books 
+                WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                GROUP BY DATE(created_at)
+                ORDER BY DATE(created_at)
+            ");
+            $stmt->execute();
+            $bookGrowthData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // 构建完整的7天电子书数据
+            $dailyBookCounts = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $date = date('Y-m-d', strtotime("-$i days"));
+                $dailyBookCounts[$date] = 0;
+            }
+            
+            // 填充实际数据
+            foreach ($bookGrowthData as $data) {
+                $dailyBookCounts[$data['date']] = (int)$data['book_count'];
+            }
     }
 
     // 处理表单提交
@@ -372,6 +424,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
     <title><?php echo isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] ? '七秒电子书后台管理' : '管理员登录'; ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .admin-sidebar {
             width: 250px;
@@ -570,6 +623,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                         </div>
                     </div>
                     
+                    <!-- 近7天用户增长和电子书增长趋势图 -->
+                    <div class="bg-white p-6 rounded-lg border mb-8">
+                        <h3 class="text-lg font-semibold mb-4">近7天增长趋势</h3>
+                        <canvas id="growthChart" height="100"></canvas>
+                    </div>
+                    
                     <div class="bg-white p-6 rounded-lg border">
                         <h3 class="text-lg font-semibold mb-4">系统信息</h3>
                         <ul class="space-y-2">
@@ -580,6 +639,44 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                         </ul>
                     </div>
                 </div>
+                
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        var ctx = document.getElementById('growthChart').getContext('2d');
+                        var chart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: <?php echo json_encode($dates); ?>,
+                                datasets: [{
+                                    label: '新增用户数',
+                                    data: <?php echo json_encode(array_values($dailyUserCounts)); ?>,
+                                    borderColor: 'rgb(54, 162, 235)',
+                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                    tension: 0.1,
+                                    fill: true
+                                }, {
+                                    label: '新增电子书数',
+                                    data: <?php echo json_encode(array_values($dailyBookCounts)); ?>,
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                    tension: 0.1,
+                                    fill: true
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            precision: 0
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    });
+                </script>
                 
             <?php elseif ($action === 'users'): ?>
                 <!-- 用户管理 -->
