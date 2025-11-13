@@ -323,6 +323,7 @@ if ($action === 'search') {
     // 获取搜索参数
     $query = trim($_GET['q'] ?? '');
     $type = $_GET['type'] ?? 'all';
+    $format = $_GET['format'] ?? ''; // 新增文件格式参数
     $page = max(1, intval($_GET['page'] ?? 1));
 
     // 未登录用户只能查看第一页
@@ -342,7 +343,7 @@ if ($action === 'search') {
         $start_time = microtime(true);
 
         // 构建搜索条件
-        $search_conditions = build_search_conditions($type, $query);
+        $search_conditions = build_search_conditions($type, $query, $format); // 传递format参数
 
         // 获取总数
         $count_sql = "SELECT COUNT(DISTINCT b.id) FROM books b WHERE {$search_conditions['where']}";
@@ -389,7 +390,7 @@ if ($action === 'search') {
 /**
  * 构建搜索条件
  */
-function build_search_conditions($type, $query) {
+function build_search_conditions($type, $query, $format = '') { // 添加format参数
     $where_parts = [];
     $relevance_parts = [];
     $params = [];
@@ -430,6 +431,12 @@ function build_search_conditions($type, $query) {
         
         $where_parts[] = '(' . implode(' OR ', $field_conditions) . ')';
         $relevance_parts[] = implode(' + ', $relevance_expressions);
+    }
+    
+    // 如果指定了文件格式，则添加格式筛选条件
+    if (!empty($format)) {
+        $where_parts[] = "b.file_format = :format";
+        $params[':format'] = $format;
     }
     
     $where_clause = implode(' AND ', $where_parts);
@@ -507,7 +514,19 @@ function format_authors($authors) {
 
 // 构建分页URL
 function build_page_url($query, $type, $new_page) {
-    $params = ['q' => $query, 'type' => $type, 'page' => $new_page];
+    // 获取当前的format参数
+    $format = $_GET['format'] ?? '';
+    
+    // 构建参数数组
+    $params = array_filter([
+        'q' => $query,
+        'type' => $type,
+        'format' => $format, // 包含format参数
+        'page' => $new_page
+    ], function($value) {
+        return !empty($value) || $value === 0;
+    });
+    
     return '?' . http_build_query($params);
 }
 
@@ -559,6 +578,14 @@ function update_user_email($user_id, $new_email) {
     $stmt = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
     return $stmt->execute([$user_id, $new_email]);
 }
+
+$supportedExts = [
+    'azw', 'azw1', 'azw3', 'azw4', 'cb7', 'cbc', 'cbr', 'cbz', 'chm', 
+    'docx', 'epub', 'fb2', 'fbz', 'html', 'htmlz', 'imp', 'kepub', 
+    'lit', 'lrf', 'lrx', 'mobi', 'odt', 'oebzip', 'opf', 'pdb', 'pdf', 
+    'pml', 'pmlz', 'pobi', 'prc', 'rar', 'rb', 'rtf', 'snb', 'tpz', 
+    'txt', 'txtz', 'updb', 'zip'
+];
 ?>
 
 <!DOCTYPE html>
@@ -887,6 +914,19 @@ function update_user_email($user_id, $new_email) {
                             <option value="title" <?php echo ($type ?? 'all') === 'title' ? 'selected' : ''; ?>>仅书名</option>
                             <option value="author" <?php echo ($type ?? 'all') === 'author' ? 'selected' : ''; ?>>仅作者</option>
                             <option value="description" <?php echo ($type ?? 'all') === 'description' ? 'selected' : ''; ?>>仅简介</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 添加文件类型筛选 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">文件类型</label>
+                        <select name="format" class="border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="">所有格式</option>
+                            <?php foreach ($supportedExts as $ext): ?>
+                                <option value="<?php echo $ext; ?>" <?php echo (($_GET['format'] ?? '') === $ext) ? 'selected' : ''; ?>>
+                                    <?php echo strtoupper($ext); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
