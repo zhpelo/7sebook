@@ -89,6 +89,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, created_at) VALUES (?, ?, ?, NOW())");
             if ($stmt->execute([$username, $password_hash, $email])) {
+                // 注册成功后自动登录
+                $stmt = $pdo->prepare("SELECT id, username, role FROM users WHERE username = ?");
+                $stmt->execute([$username]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($user) {
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['user_role'] = $user['role'];
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
+                }
+                
                 $register_success = '注册成功，请登录';
             } else {
                 $register_error = '注册失败';
