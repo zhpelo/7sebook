@@ -652,6 +652,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                                     data: <?php echo json_encode(array_values($dailyUserCounts)); ?>,
                                     borderColor: 'rgb(54, 162, 235)',
                                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                    AxisID: 'left-y-axis',
                                     tension: 0.1,
                                     fill: true
                                 }, {
@@ -659,6 +660,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                                     data: <?php echo json_encode(array_values($dailyBookCounts)); ?>,
                                     borderColor: 'rgb(255, 99, 132)',
                                     backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                    yAxisID: 'right-y-axis',
                                     tension: 0.1,
                                     fill: true
                                 }]
