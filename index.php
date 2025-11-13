@@ -855,7 +855,7 @@ $supportedExts = [
                                     </div>
                                     <div>
                                         <div class="text-sm text-gray-500">语言</div>
-                                        <div class="font-semibold"><?php echo htmlspecialchars($book['languages']); ?></div>
+                                        <div class="font-semibold"><?php echo $book['languages'] ?? "未知"; ?></div>
                                     </div>
                                 </div>
                             </div>
