@@ -654,6 +654,62 @@ $supportedExts = [
     'updb',
     'zip'
 ];
+
+// SEO优化函数：生成结构化数据
+function generate_book_structured_data($book) {
+    $data = [
+        '@context' => 'https://schema.org',
+        '@type' => 'Book',
+        'name' => $book['title'],
+        'author' => explode(',', $book['author']),
+        'description' => $book['description'],
+        'datePublished' => $book['published_at'],
+        'publisher' => $book['publisher'],
+        'inLanguage' => $book['languages'],
+        'isbn' => $book['identifiers']
+    ];
+    
+    // 移除空值
+    $data = array_filter($data, function($value) {
+        return !empty($value) && $value !== '暂无资料';
+    });
+    
+    return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
+// SEO优化函数：生成面包屑结构化数据
+function generate_breadcrumb_structured_data($action, $book = null) {
+    $items = [
+        [
+            '@type' => 'ListItem',
+            'position' => 1,
+            'name' => '首页',
+            'item' => 'https://' . $_SERVER['HTTP_HOST'] . '/'
+        ]
+    ];
+    
+    if ($action === 'detail' && $book) {
+        $items[] = [
+            '@type' => 'ListItem',
+            'position' => 2,
+            'name' => $book['title'],
+            'item' => 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']
+        ];
+    } else if (!empty($_GET['q'])) {
+        $items[] = [
+            '@type' => 'ListItem',
+            'position' => 2,
+            'name' => '搜索结果',
+            'item' => 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']
+        ];
+    }
+    
+    return json_encode([
+        '@context' => 'https://schema.org',
+        '@type' => 'BreadcrumbList',
+        'itemListElement' => $items
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
 ?>
 
 <!DOCTYPE html>
@@ -663,13 +719,29 @@ $supportedExts = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php if ($action === 'detail' && $book): ?>
-        <title><?php echo htmlspecialchars($book['title']); ?> - 电子书详情</title>
-        <meta name="description" content="<?php echo htmlspecialchars($book['description']); ?>">
+        <title><?php echo htmlspecialchars($book['title']); ?> - <?php echo htmlspecialchars($book['author']); ?> - 七秒电子书</title>
+        <meta name="description" content="<?php echo htmlspecialchars(substr($book['description'], 0, 160)); ?>...">
+        <meta name="keywords" content="<?php echo htmlspecialchars($book['title']); ?>,<?php echo htmlspecialchars($book['author']); ?>,电子书下载,<?php echo htmlspecialchars($book['category'] ?? ''); ?>,<?php echo htmlspecialchars($book['file_format']); ?>电子书">
+        <meta property="og:title" content="<?php echo htmlspecialchars($book['title']); ?> - 七秒电子书">
+        <meta property="og:description" content="<?php echo htmlspecialchars(substr($book['description'], 0, 200)); ?>...">
+        <meta property="og:type" content="book">
+        <meta property="og:image" content="<?php echo htmlspecialchars($book['cover_url']); ?>">
+        <meta property="og:url" content="<?php echo 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
+        <meta property="og:site_name" content="七秒电子书">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="<?php echo htmlspecialchars($book['title']); ?>">
+        <meta name="twitter:description" content="<?php echo htmlspecialchars(substr($book['description'], 0, 200)); ?>...">
+        <meta name="twitter:image" content="<?php echo htmlspecialchars($book['cover_url']); ?>">
     <?php else: ?>
         <title><?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书 - 地表最强电子书搜索引擎'; ?></title>
-        <meta name="description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
+        <meta name="description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果，提供PDF、EPUB、MOBI等格式免费下载' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
+        <meta name="keywords" content="电子书下载, 免费电子书, 电子书搜索, PDF电子书, EPUB下载, 七秒电子书, 小说电子书, 电子书资源站<?php echo $query ? ',' . htmlspecialchars($query) : ''; ?>">
+        <meta property="og:title" content="<?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书 - 地表最强电子书搜索引擎'; ?>">
+        <meta property="og:description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果，提供PDF、EPUB、MOBI等格式免费下载' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="<?php echo 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
+        <meta property="og:site_name" content="七秒电子书">
     <?php endif; ?>
-    <meta name="keywords" content="电子书下载, 免费电子书, 电子书搜索, PDF电子书, EPUB下载, 七秒电子书, 小说电子书, 电子书资源站">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Google tag (gtag.js) -->
