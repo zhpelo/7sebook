@@ -269,6 +269,7 @@ if ($action === 'detail' && $book_id) {
             SELECT *
             FROM books
             WHERE id < ?
+            ORDER BY id DESC
             LIMIT 10
         ");
         $stmt->execute([$book_id]);
