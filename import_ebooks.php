@@ -5,7 +5,7 @@ require 'config.php';
 
 // =============== 配置区 ===============
 $inputDir      = __DIR__.'/test'; // 修改为你的输入目录
-$successDir    = __DIR__.'/ebook';  //处理完成移入的目录
+$successDir    = __DIR__.'/ebook_files';  //处理完成移入的目录
 $duplicateDir  = __DIR__.'/duplicate'; // 建议用英文路径
 $coverDir      = __DIR__.'/covers';  //封面存储的目录
 
