@@ -666,10 +666,10 @@ $supportedExts = [
         <title><?php echo htmlspecialchars($book['title']); ?> - 电子书详情</title>
         <meta name="description" content="<?php echo htmlspecialchars($book['description']); ?>">
     <?php else: ?>
-        <title><?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书'; ?></title>
-        <meta name="description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果' : '中文电子书搜索引擎，支持书名、作者、简介搜索'; ?>">
+        <title><?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书 - 地表最强电子书搜索引擎'; ?></title>
+        <meta name="description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
     <?php endif; ?>
-    <meta name="keywords" content="电子书,搜索,详情,下载,图书,PDF">
+    <meta name="keywords" content="电子书下载, 免费电子书, 电子书搜索, PDF电子书, EPUB下载, 七秒电子书, 小说电子书, 电子书资源站">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Google tag (gtag.js) -->
