@@ -44,7 +44,7 @@ foreach ($iterator as $file) {
             $files[] = $file->getPathname();
         }
     }
-    if (count($files) >= 1) {
+    if (count($files) >= 10) {
         break;
     }   
 }
