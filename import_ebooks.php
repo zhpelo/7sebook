@@ -44,14 +44,14 @@ foreach ($iterator as $file) {
             $files[] = $file->getPathname();
         }
     }
-    if (count($files) >= 10) {
+    if (count($files) >= 1) {
         break;
     }   
 }
 
 
 foreach ($files as $filePath) {
-    echo "处理: $filePath\n";
+    echo "🚀 开始处理: $filePath\n";
     
     if (!is_readable($filePath)) {
         echo "❌ 文件不可读，跳过\n";
@@ -75,7 +75,7 @@ foreach ($files as $filePath) {
     $stmt->execute([$md5]);
     if ($stmt->fetch()) {
         echo "⚠️ MD5 已存在，移动到重复目录\n";
-        $dest = $duplicateDir . DIRECTORY_SEPARATOR . $file_name;
+        $dest = $duplicateDir . DIRECTORY_SEPARATOR . date("ymd") . DIRECTORY_SEPARATOR . $file_name;
         if (@rename($filePath, $dest) || copyAndDelete($filePath, $dest)) {
             echo "✅ 移动到 $dest\n";
         } else {
@@ -92,7 +92,7 @@ foreach ($files as $filePath) {
     }
 
     $newName = $md5 . '.' . $ext;
-    $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
+    $destPath = $successDir . DIRECTORY_SEPARATOR . date("ymd") . DIRECTORY_SEPARATOR . $newName;
     
     // 插入数据库
     $stmt = $pdo->prepare("
@@ -150,7 +150,7 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
     }
 
     // 整合元数据提取和封面提取为一步
-    $coverPath = $coverDir . DIRECTORY_SEPARATOR . $md5 . '.jpg';
+    $coverPath = $coverDir . DIRECTORY_SEPARATOR . date("ymd") . DIRECTORY_SEPARATOR . $md5 . '.jpg';
     $cmd = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta --get-cover=' . escapeshellarg($coverPath) . ' ' . escapeshellarg($filePath) . ' 2>/dev/null';
     $output = shell_exec($cmd);
 
