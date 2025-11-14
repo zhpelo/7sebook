@@ -23,7 +23,7 @@ $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // 添加主页
 echo "  <url>\n";
-echo "    <loc>http://" . $_SERVER['HTTP_HOST'] . "/</loc>\n";
+echo "    <loc>https://" . $_SERVER['HTTP_HOST'] . "/</loc>\n";
 echo "    <changefreq>daily</changefreq>\n";
 echo "    <priority>1.0</priority>\n";
 echo "  </url>\n";

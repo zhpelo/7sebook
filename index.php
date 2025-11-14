@@ -725,13 +725,13 @@ function generate_breadcrumb_structured_data($action, $book = null) {
         <meta property="og:title" content="<?php echo htmlspecialchars($book['title']); ?> - 七秒电子书">
         <meta property="og:description" content="<?php echo htmlspecialchars(substr($book['description'], 0, 200)); ?>...">
         <meta property="og:type" content="book">
-        <meta property="og:image" content="<?php echo htmlspecialchars($book['cover_url']); ?>">
+        <meta property="og:image" content="<?php echo "https://".$_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
         <meta property="og:url" content="<?php echo 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
         <meta property="og:site_name" content="七秒电子书">
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:title" content="<?php echo htmlspecialchars($book['title']); ?>">
         <meta name="twitter:description" content="<?php echo htmlspecialchars(substr($book['description'], 0, 200)); ?>...">
-        <meta name="twitter:image" content="<?php echo htmlspecialchars($book['cover_url']); ?>">
+        <meta name="twitter:image" content="<?php echo "https://".$_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
     <?php else: ?>
         <title><?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书 - 地表最强电子书搜索引擎'; ?></title>
         <meta name="description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果，提供PDF、EPUB、MOBI等格式免费下载' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
