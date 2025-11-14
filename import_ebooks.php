@@ -4,10 +4,10 @@ declare(strict_types=1);
 require 'config.php';
 
 // =============== 配置区 ===============
-$inputDir      = __DIR__.'/test'; // 修改为你的输入目录
-$successDir    = __DIR__.'/ebook_files';  //处理完成移入的目录
-$duplicateDir  = __DIR__.'/duplicate'; // 建议用英文路径
-$coverDir      = __DIR__.'/covers';  //封面存储的目录
+$inputDir      = __DIR__.'/pending'; // 修改为你的输入目录
+$successDir    = __DIR__.'/ebook_files/' . date("ymd");  //处理完成移入的目录
+$duplicateDir  = __DIR__.'/duplicate/'. date("ymd"); // 建议用英文路径
+$coverDir      = __DIR__.'/covers/'. date("ymd");  //封面存储的目录
 
 $supportedExts = [
     'azw', 'azw1', 'azw3', 'azw4', 'cb7', 'cbc', 'cbr', 'cbz', 'chm', 
@@ -75,7 +75,8 @@ foreach ($files as $filePath) {
     $stmt->execute([$md5]);
     if ($stmt->fetch()) {
         echo "⚠️ MD5 已存在，移动到重复目录\n";
-        $dest = $duplicateDir . DIRECTORY_SEPARATOR . date("ymd") . DIRECTORY_SEPARATOR . $file_name;
+        $dest = $duplicateDir . DIRECTORY_SEPARATOR . $file_name;
+
         if (@rename($filePath, $dest) || copyAndDelete($filePath, $dest)) {
             echo "✅ 移动到 $dest\n";
         } else {
@@ -92,7 +93,7 @@ foreach ($files as $filePath) {
     }
 
     $newName = $md5 . '.' . $ext;
-    $destPath = $successDir . DIRECTORY_SEPARATOR . date("ymd") . DIRECTORY_SEPARATOR . $newName;
+    $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
     
     // 插入数据库
     $stmt = $pdo->prepare("
@@ -150,7 +151,7 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
     }
 
     // 整合元数据提取和封面提取为一步
-    $coverPath = $coverDir . DIRECTORY_SEPARATOR . date("ymd") . DIRECTORY_SEPARATOR . $md5 . '.jpg';
+    $coverPath = $coverDir . DIRECTORY_SEPARATOR . $md5 . '.jpg';
     $cmd = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta --get-cover=' . escapeshellarg($coverPath) . ' ' . escapeshellarg($filePath) . ' 2>/dev/null';
     $output = shell_exec($cmd);
 
@@ -207,6 +208,7 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
     }
     
     // 检查封面是否成功提取
+    
     if (is_file($coverPath) && filesize($coverPath) > 1024) {
         $meta['cover_path'] = $coverPath;
     } else {
