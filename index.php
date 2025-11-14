@@ -268,7 +268,7 @@ if ($action === 'detail' && $book_id) {
         $stmt = $pdo->prepare("
             SELECT *
             FROM books
-            WHERE id > ?
+            WHERE id < ?
             LIMIT 10
         ");
         $stmt->execute([$book_id]);
