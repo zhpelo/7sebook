@@ -720,17 +720,17 @@ function generate_breadcrumb_structured_data($action, $book = null) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php if ($action === 'detail' && $book): ?>
         <title><?php echo htmlspecialchars($book['title']); ?> - <?php echo htmlspecialchars($book['author']); ?> - 七秒电子书</title>
-        <meta name="description" content="<?php echo substr($book['description'], 0, 160) ?? '暂无简介' ; ?>...">
+        <meta name="description" content="<?php echo substr($book['description'], 0, 160) ?: '暂无简介'; ?>...">
         <meta name="keywords" content="<?php echo htmlspecialchars($book['title']); ?>,<?php echo htmlspecialchars($book['author']); ?>,电子书下载,<?php echo htmlspecialchars($book['category'] ?? ''); ?>,<?php echo htmlspecialchars($book['file_format']); ?>电子书">
-        <meta property="og:title" content="<?php echo htmlspecialchars($book['title']); ?> - 七秒电子书">
-        <meta property="og:description" content="<?php echo substr($book['description'], 0, 160) ?? '暂无简介' ; ?>...">
+        <meta property="og:title" content="<?php echo htmlspecialchars($book['title']); ?>">
+        <meta property="og:description" content="<?php echo substr($book['description'], 0, 160) ?: '暂无简介' ; ?>...">
         <meta property="og:type" content="book">
         <meta property="og:image" content="<?php echo "https://".$_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
         <meta property="og:url" content="<?php echo 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
         <meta property="og:site_name" content="七秒电子书">
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:title" content="<?php echo htmlspecialchars($book['title']); ?>">
-        <meta name="twitter:description" content="<?php echo substr($book['description'], 0, 160) ?? '暂无简介' ; ?>...">
+        <meta name="twitter:description" content="<?php echo substr($book['description'], 0, 160) ?: '暂无简介' ; ?>...">
         <meta name="twitter:image" content="<?php echo "https://".$_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
     <?php else: ?>
         <title><?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书 - 地表最强电子书搜索引擎'; ?></title>
