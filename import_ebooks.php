@@ -8,7 +8,6 @@ if (php_sapi_name() !== 'cli') {
     die("请通过cli执行\n");
 }
 
-require 'config.php';
 require 'common.php';
 
 // =============== 配置区 ===============
