@@ -26,6 +26,18 @@ function get_user_role()
     return $_SESSION['user_role'] ?? 'guest';
 }
 
+// 检查是否为管理用户
+function is_admin()
+{
+    return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
+}
+
+// 检查是否已登录且为管理用户
+function is_admin_logged_in()
+{
+    return isset($_SESSION['user_id']) && isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
+}
+
 // 检查用户今日下载次数
 function check_download_limit($user_id)
 {
@@ -70,6 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['user_role'] = $user['role'];
+            
+            // 检查是否为管理用户，设置管理登录状态
+            if (isset($user['role']) && $user['role'] === 'admin') {
+                $_SESSION['admin_logged_in'] = true;
+            } else {
+                $_SESSION['admin_logged_in'] = false;
+            }
+            
             header('Location: ' . $_SERVER['PHP_SELF'] . '?' . http_build_query($_GET));
             exit;
         } else {
@@ -105,6 +125,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['user_role'] = $user['role'];
+                    
+                    // 检查是否为管理用户，设置管理登录状态
+                    if (isset($user['role']) && $user['role'] === 'admin') {
+                        $_SESSION['admin_logged_in'] = true;
+                    } else {
+                        $_SESSION['admin_logged_in'] = false;
+                    }
+                    
                     header('Location: ' . $_SERVER['PHP_SELF']);
                     exit;
                 }
@@ -121,6 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // 登出处理
 if (isset($_GET['logout'])) {
+    // 清除管理登录状态
+    unset($_SESSION['admin_logged_in']);
     session_destroy();
     header('Location: ' . $_SERVER['PHP_SELF'] . '?' . http_build_query(array_filter($_GET, function ($k) {
         return $k !== 'logout';
@@ -790,6 +820,11 @@ function generate_breadcrumb_structured_data($action, $book = null) {
                             </a>
                             <?php if (get_user_role() === 'user'): ?>
                                 <span class="ml-2 text-xs bg-green-500 px-2 py-1 rounded">已下载: <?php echo get_user_download_count(); ?>/5</span>
+                            <?php endif; ?>
+                            <?php if (is_admin()): ?>
+                                <a href="admin.php" class="ml-2 text-sm bg-purple-500 hover:bg-purple-600 px-3 py-1 rounded transition">
+                                    <i class="fas fa-cog mr-1"></i> 管理后台
+                                </a>
                             <?php endif; ?>
                             <a href="?logout=1" class="ml-3 text-sm bg-red-500 hover:bg-red-600 px-3 py-1 rounded transition">退出</a>
                         <?php else: ?>

@@ -1,8 +1,14 @@
 <?php
+// 导入电子书功能脚本，只允许通过cli执行
+
+
 declare(strict_types=1);
 
 require 'config.php';
-
+//检查是否通过cli执行
+if (!php_sapi_name() === 'cli') {
+    die("请通过cli执行\n");
+}
 
 // =============== 配置区 ===============
 $input_dir      = __DIR__.'/pending'; // 修改为你的输入目录
