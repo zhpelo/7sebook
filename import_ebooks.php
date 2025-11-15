@@ -1,14 +1,15 @@
 <?php
 // 导入电子书功能脚本，只允许通过cli执行
 
-
 declare(strict_types=1);
 
-require 'config.php';
-//检查是否通过cli执行
-if (!php_sapi_name() === 'cli') {
+// 检查是否通过cli执行
+if (php_sapi_name() !== 'cli') {
     die("请通过cli执行\n");
 }
+
+require 'config.php';
+require 'common.php';
 
 // =============== 配置区 ===============
 $input_dir      = __DIR__.'/pending'; // 修改为你的输入目录
@@ -16,13 +17,8 @@ $success_dir    = __DIR__.'/ebook_files/' . date("ymd");  //处理完成移入�
 $duplicate_dir  = __DIR__.'/duplicate/'. date("ymd"); // 建议用英文路径
 $cover_dir      = __DIR__.'/covers/'. date("ymd");  //封面存储的目录
 
-$supported_exts = [
-    'azw', 'azw1', 'azw3', 'azw4', 'cb7', 'cbc', 'cbr', 'cbz', 'chm', 
-    'docx', 'epub', 'fb2', 'fbz', 'html', 'htmlz', 'imp', 'kepub', 
-    'lit', 'lrf', 'lrx', 'mobi', 'odt', 'oebzip', 'opf', 'pdb', 'pdf', 
-    'pml', 'pmlz', 'pobi', 'prc', 'rar', 'rb', 'rtf', 'snb', 'tpz', 
-    'txt', 'txtz', 'updb', 'zip'
-];
+// 使用 common.php 中定义的支持格式列表
+$supported_exts = SUPPORTED_EXTS;
 // =====================================
 
 // 创建目录
@@ -32,13 +28,9 @@ foreach ([$success_dir, $duplicate_dir, $cover_dir] as $dir) {
     }
 }
 
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-    ]);
-} catch (PDOException $e) {
-    die("数据库连接失败: " . $e->getMessage() . "\n");
+// 使用 common.php 中的数据库连接
+if (!$pdo) {
+    die("数据库连接失败\n");
 }
 
 // 获取所有支持的文件
@@ -103,7 +95,7 @@ foreach ($files as $file_path) {
     $dest_path = $success_dir . DIRECTORY_SEPARATOR . $new_name;
     
     // 插入数据库
-    $current_time = date('Y-m-d H:i:s');
+    $current_time = get_current_time();
     $stmt = $pdo->prepare("
     INSERT INTO books (
         file_md5, file_name, file_format, file_size, 

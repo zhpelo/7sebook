@@ -1,20 +1,17 @@
 <?php
 // 管理员后台页面
-
-
-require 'config.php';
 session_start();
+require 'config.php';
+require 'common.php';
 
-//只允许管理员访问
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
+// 只允许管理员访问
+if (!is_admin_logged_in()) {
     header('Location: index.php');
     exit;
 }
 
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
+// 检查数据库连接
+if (!$pdo) {
     die('数据库连接失败');
 }
 
@@ -293,7 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tags = trim($_POST['tags'] ?? '');
 
             if ($title && $author) {
-                $current_time = date('Y-m-d H:i:s');
+                $current_time = get_current_time();
                 $stmt = $pdo->prepare("
                     INSERT INTO books (title, author, description, category, publisher, page_count, file_name, file_path, file_size, file_format, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -305,7 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // 添加标签
                 if ($tags) {
                     $tag_list = array_filter(array_map('trim', explode(',', $tags)));
-                    $current_time = date('Y-m-d H:i:s');
+                    $current_time = get_current_time();
                     foreach ($tag_list as $tag) {
                         if ($tag) {
                             $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
@@ -335,7 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tags = trim($_POST['tags'] ?? '');
 
             if ($book_id && $title && $author) {
-                $current_time = date('Y-m-d H:i:s');
+                $current_time = get_current_time();
                 $stmt = $pdo->prepare("
                     UPDATE books 
                     SET title = ?, author = ?, description = ?, category = ?, publisher = ?, page_count = ?, 
@@ -351,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // 添加新标签
                 if ($tags) {
                     $tag_list = array_filter(array_map('trim', explode(',', $tags)));
-                    $current_time = date('Y-m-d H:i:s');
+                    $current_time = get_current_time();
                     foreach ($tag_list as $tag) {
                         if ($tag) {
                             $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
@@ -383,7 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tag_name = trim($_POST['tag_name'] ?? '');
 
             if ($book_id && $tag_name) {
-                $current_time = date('Y-m-d H:i:s');
+                $current_time = get_current_time();
                 $stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
                 $stmt->execute([$book_id, $tag_name, $current_time]);
                 $message = '标签添加成功';
@@ -458,7 +455,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // 合并标签：将源标签的所有书籍关联到目标标签
                     // 先找出源标签的书籍ID（排除已存在于目标标签的书籍）
                     // 获取当前时间
-                    $current_time = date('Y-m-d H:i:s');
+                    $current_time = get_current_time();
                     $merge_stmt = $pdo->prepare("
                         INSERT INTO book_tags (book_id, tag_name, created_at)
                         SELECT DISTINCT bt1.book_id, ?, ?
@@ -509,11 +506,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// 获取分页URL
+// 使用 common.php 中的函数
+// build_admin_page_url 已在 common.php 中定义
 function build_page_url($action, $new_page)
 {
-    $params = ['action' => $action, 'page' => $new_page];
-    return '?' . http_build_query($params);
+    return build_admin_page_url($action, $new_page);
 }
 ?>
 
@@ -801,7 +798,7 @@ function build_page_url($action, $new_page)
                         <li><strong>PHP版本:</strong> <?php echo PHP_VERSION; ?></li>
                         <li><strong>数据库:</strong> MySQL <?php echo $pdo->getAttribute(PDO::ATTR_SERVER_VERSION); ?></li>
                         <li><strong>管理员:</strong> <?php echo $_SESSION['admin_username'] ?? '未知'; ?></li>
-                        <li><strong>当前时间:</strong> <?php echo date('Y-m-d H:i:s'); ?></li>
+                        <li><strong>当前时间:</strong> <?php echo get_current_time(); ?></li>
                     </ul>
                 </div>
             </div>

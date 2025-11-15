@@ -2,11 +2,10 @@
 // 生成 Google Sitemap 文件
 
 require 'config.php';
+require 'common.php';
 
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
+// 检查数据库连接
+if (!$pdo) {
     die('数据库连接失败');
 }
 
