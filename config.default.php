@@ -2,7 +2,7 @@
 
 define('TIMEZONE', 'Asia/Shanghai');
 // 设置DEBUG模式
-define('DEBUG', true);
+define('DEBUG', false);
 // 数据库配置
 $db_host = 'localhost';
 $db_name = 'local';
