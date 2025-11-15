@@ -305,10 +305,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // 添加标签
                 if ($tags) {
                     $tag_list = array_filter(array_map('trim', explode(',', $tags)));
+                    $current_time = date('Y-m-d H:i:s');
                     foreach ($tag_list as $tag) {
                         if ($tag) {
-                            $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name) VALUES (?, ?)");
-                            $tag_stmt->execute([$book_id, $tag]);
+                            $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
+                            $tag_stmt->execute([$book_id, $tag, $current_time]);
                         }
                     }
                 }
@@ -350,10 +351,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // 添加新标签
                 if ($tags) {
                     $tag_list = array_filter(array_map('trim', explode(',', $tags)));
+                    $current_time = date('Y-m-d H:i:s');
                     foreach ($tag_list as $tag) {
                         if ($tag) {
-                            $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name) VALUES (?, ?)");
-                            $tag_stmt->execute([$book_id, $tag]);
+                            $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
+                            $tag_stmt->execute([$book_id, $tag, $current_time]);
                         }
                     }
                 }
@@ -381,8 +383,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tag_name = trim($_POST['tag_name'] ?? '');
 
             if ($book_id && $tag_name) {
-                $stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name) VALUES (?, ?)");
-                $stmt->execute([$book_id, $tag_name]);
+                $current_time = date('Y-m-d H:i:s');
+                $stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
+                $stmt->execute([$book_id, $tag_name, $current_time]);
                 $message = '标签添加成功';
             } else {
                 $error = '请选择图书并输入标签名称';

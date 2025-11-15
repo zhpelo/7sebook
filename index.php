@@ -1,5 +1,5 @@
 <?php
-// 带详情页和下载功能的电子书搜索系统
+// 网站前台页面
 session_start();
 require 'config.php';
 

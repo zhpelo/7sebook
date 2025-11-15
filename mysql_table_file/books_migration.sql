@@ -1,8 +1,39 @@
 -- books 表结构迁移脚本（从旧结构升级到优化后的结构）
 -- 执行前请备份数据！
 
--- 1. 修改主键ID类型为 bigint（支持更大数据量）
+-- 重要：需要先处理外键约束，再修改字段类型
+-- 错误修复：必须先删除外键约束，修改 book_tags.book_id，然后修改 books.id，最后重新添加外键
+
+-- 步骤 1：删除 book_tags 表的外键约束（如果存在）
+-- MySQL 8.0+ 支持 IF EXISTS，MySQL 5.7 及以下版本不支持
+-- 如果执行报错 "Unknown key 'fk_book_tags_book_id'"，请先查询外键名称：
+-- SHOW CREATE TABLE `book_tags`;
+-- 或者：
+-- SELECT CONSTRAINT_NAME 
+-- FROM information_schema.TABLE_CONSTRAINTS 
+-- WHERE TABLE_SCHEMA = DATABASE() 
+-- AND TABLE_NAME = 'book_tags' 
+-- AND CONSTRAINT_TYPE = 'FOREIGN KEY';
+
+-- MySQL 8.0+ 可以使用：
+ALTER TABLE `book_tags` DROP FOREIGN KEY IF EXISTS `fk_book_tags_book_id`;
+
+-- MySQL 5.7 及以下版本，如果上面报错，请手动删除（替换为实际的外键名称）：
+-- ALTER TABLE `book_tags` DROP FOREIGN KEY `实际外键名称`;
+
+-- 步骤 2：先修改 book_tags 表的 book_id 为 bigint（必须先于 books.id 修改）
+-- 注意：如果 book_tags 表不存在，可以跳过此步骤
+ALTER TABLE `book_tags` MODIFY `book_id` bigint unsigned NOT NULL COMMENT '电子书ID';
+
+-- 步骤 3：修改 books 表的主键ID类型为 bigint（支持更大数据量）
 ALTER TABLE `books` MODIFY `id` bigint unsigned NOT NULL AUTO_INCREMENT;
+
+-- 步骤 4：重新添加外键约束
+-- 注意：确保 book_tags 表存在且 book_id 已经是 bigint 类型
+ALTER TABLE `book_tags` 
+ADD CONSTRAINT `fk_book_tags_book_id` 
+FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) 
+ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- 2. 优化字段类型
 ALTER TABLE `books` MODIFY `title` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '书名';
