@@ -48,11 +48,12 @@ function log_download($user_id, $book_id)
 {
     global $pdo;
 
+    $current_time = date('Y-m-d H:i:s');
     $stmt = $pdo->prepare("
         INSERT INTO download_logs (user_id, book_id, download_time) 
-        VALUES (:user_id, :book_id, NOW())
+        VALUES (:user_id, :book_id, :download_time)
     ");
-    $stmt->execute(['user_id' => $user_id, 'book_id' => $book_id]);
+    $stmt->execute(['user_id' => $user_id, 'book_id' => $book_id, 'download_time' => $current_time]);
 }
 
 // 登录处理
@@ -92,8 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         } else {
             // 插入新用户
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, created_at) VALUES (?, ?, ?, NOW())");
-            if ($stmt->execute([$username, $password_hash, $email])) {
+            $current_time = date('Y-m-d H:i:s');
+            $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, created_at) VALUES (?, ?, ?, ?)");
+            if ($stmt->execute([$username, $password_hash, $email, $current_time])) {
                 // 注册成功后自动登录
                 $stmt = $pdo->prepare("SELECT id, username, role FROM users WHERE username = ?");
                 $stmt->execute([$username]);
@@ -613,7 +615,7 @@ function update_user_email($user_id, $new_email)
     return $stmt->execute([$user_id, $new_email]);
 }
 
-$supportedExts = [
+$supported_exts = [
     'azw',
     'azw1',
     'azw3',
@@ -1114,7 +1116,7 @@ function generate_breadcrumb_structured_data($action, $book = null) {
                             <label class="block text-sm font-medium text-gray-700 mb-1">文件类型</label>
                             <select name="format" class="border border-gray-300 rounded-lg px-3 py-2">
                                 <option value="">所有格式</option>
-                                <?php foreach ($supportedExts as $ext): ?>
+                                <?php foreach ($supported_exts as $ext): ?>
                                     <option value="<?php echo $ext; ?>" <?php echo (($_GET['format'] ?? '') === $ext) ? 'selected' : ''; ?>>
                                         <?php echo strtoupper($ext); ?>
                                     </option>

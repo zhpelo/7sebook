@@ -3,13 +3,14 @@ declare(strict_types=1);
 
 require 'config.php';
 
-// =============== 配置区 ===============
-$inputDir      = __DIR__.'/pending'; // 修改为你的输入目录
-$successDir    = __DIR__.'/ebook_files/' . date("ymd");  //处理完成移入的目录
-$duplicateDir  = __DIR__.'/duplicate/'. date("ymd"); // 建议用英文路径
-$coverDir      = __DIR__.'/covers/'. date("ymd");  //封面存储的目录
 
-$supportedExts = [
+// =============== 配置区 ===============
+$input_dir      = __DIR__.'/pending'; // 修改为你的输入目录
+$success_dir    = __DIR__.'/ebook_files/' . date("ymd");  //处理完成移入的目录
+$duplicate_dir  = __DIR__.'/duplicate/'. date("ymd"); // 建议用英文路径
+$cover_dir      = __DIR__.'/covers/'. date("ymd");  //封面存储的目录
+
+$supported_exts = [
     'azw', 'azw1', 'azw3', 'azw4', 'cb7', 'cbc', 'cbr', 'cbz', 'chm', 
     'docx', 'epub', 'fb2', 'fbz', 'html', 'htmlz', 'imp', 'kepub', 
     'lit', 'lrf', 'lrx', 'mobi', 'odt', 'oebzip', 'opf', 'pdb', 'pdf', 
@@ -19,7 +20,7 @@ $supportedExts = [
 // =====================================
 
 // 创建目录
-foreach ([$successDir, $duplicateDir, $coverDir] as $dir) {
+foreach ([$success_dir, $duplicate_dir, $cover_dir] as $dir) {
     if (!is_dir($dir)) {
         mkdir($dir, 0755, true);
     }
@@ -36,11 +37,11 @@ try {
 
 // 获取所有支持的文件
 $files = [];
-$iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($inputDir));
+$iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($input_dir));
 foreach ($iterator as $file) {
     if ($file->isFile()) {
         $ext = strtolower($file->getExtension());
-        if (in_array($ext, $supportedExts, true)) {
+        if (in_array($ext, $supported_exts, true)) {
             $files[] = $file->getPathname();
         }
     }
@@ -50,21 +51,21 @@ foreach ($iterator as $file) {
 }
 
 
-foreach ($files as $filePath) {
-    echo "🚀 开始处理: $filePath\n";
+foreach ($files as $file_path) {
+    echo "🚀 开始处理: $file_path\n";
     
-    if (!is_readable($filePath)) {
+    if (!is_readable($file_path)) {
         echo "❌ 文件不可读，跳过\n";
         continue;
     }
 
-    $fileInfo = new SplFileInfo($filePath);
-    $ext = strtolower($fileInfo->getExtension());
-    $file_name = $fileInfo->getFilename();
-    $file_size = $fileInfo->getSize();
+    $file_info = new SplFileInfo($file_path);
+    $ext = strtolower($file_info->getExtension());
+    $file_name = $file_info->getFilename();
+    $file_size = $file_info->getSize();
 
     // 计算 MD5
-    $md5 = hash_file('md5', $filePath);
+    $md5 = hash_file('md5', $file_path);
     if ($md5 === false) {
         echo "❌ 无法计算 MD5\n";
         continue;
@@ -75,9 +76,9 @@ foreach ($files as $filePath) {
     $stmt->execute([$md5]);
     if ($stmt->fetch()) {
         echo "⚠️ MD5 已存在，移动到重复目录\n";
-        $dest = $duplicateDir . DIRECTORY_SEPARATOR . $file_name;
+        $dest = $duplicate_dir . DIRECTORY_SEPARATOR . $file_name;
 
-        if (@rename($filePath, $dest) || copyAndDelete($filePath, $dest)) {
+        if (@rename($file_path, $dest) || copy_and_delete($file_path, $dest)) {
             echo "✅ 移动到 $dest\n";
         } else {
             echo "❌ 移动失败\n";
@@ -86,16 +87,17 @@ foreach ($files as $filePath) {
     }
 
     // 提取元数据
-    $meta = extractMetadata($filePath, $md5, $coverDir);
+    $meta = extract_metadata($file_path, $md5, $cover_dir);
     if ($meta === null) {
         echo "❌ 元数据提取失败\n";
         continue;
     }
 
-    $newName = $md5 . '.' . $ext;
-    $destPath = $successDir . DIRECTORY_SEPARATOR . $newName;
+    $new_name = $md5 . '.' . $ext;
+    $dest_path = $success_dir . DIRECTORY_SEPARATOR . $new_name;
     
     // 插入数据库
+    $current_time = date('Y-m-d H:i:s');
     $stmt = $pdo->prepare("
     INSERT INTO books (
         file_md5, file_name, file_format, file_size, 
@@ -106,14 +108,14 @@ foreach ($files as $filePath) {
         ?, ?, ?, ?,
         ?, ?, ?, 
         ?, ?, ?, ?,
-        ?, ?, NOW())
+        ?, ?, ?)
     ");
     try {
         $stmt->execute([
             $md5, $file_name, $ext, $file_size,
             $meta['title'],     $meta['authors'],       $meta['description'],
             $meta['languages'], $meta['publisher'],     $meta['published_at'], $meta['identifiers'],
-            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null, str_replace(__DIR__, '', $destPath),
+            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null, str_replace(__DIR__, '', $dest_path), $current_time,
         ]);
     } catch (PDOException $e) {
         echo "❌ 插入数据库失败: " . $e->getMessage() . "\n";
@@ -123,8 +125,8 @@ foreach ($files as $filePath) {
 
     // 移动文件
     
-    if (@rename($filePath, $destPath) || copyAndDelete($filePath, $destPath)) {
-        echo "✅ 成功处理并移动到 $destPath\n";
+    if (@rename($file_path, $dest_path) || copy_and_delete($file_path, $dest_path)) {
+        echo "✅ 成功处理并移动到 $dest_path\n";
     } else {
         echo "❌ 移动文件失败\n";
     }
@@ -137,22 +139,22 @@ echo "所有文件处理完成！\n";
 /**
  * 使用 ebook-meta 提取电子书元数据和封面
  *
- * @param string $filePath 原始电子书文件路径
+ * @param string $file_path 原始电子书文件路径
  * @param string $md5 文件 MD5（用于封面命名）
- * @param string $coverDir 封面保存目录（需可写）
+ * @param string $cover_dir 封面保存目录（需可写）
  * @return array|null 成功返回元数据数组，失败返回 null
  */
 /**
  * 提取电子书完整元数据（支持 Title, Author(s), Publisher, Languages, Published, Identifiers）
  */
-function extractMetadata(string $filePath, string $md5, string $coverDir): ?array {
-    if (!is_dir($coverDir)) {
-        mkdir($coverDir, 0755, true);
+function extract_metadata(string $file_path, string $md5, string $cover_dir): ?array {
+    if (!is_dir($cover_dir)) {
+        mkdir($cover_dir, 0755, true);
     }
 
     // 整合元数据提取和封面提取为一步
-    $coverPath = $coverDir . DIRECTORY_SEPARATOR . $md5 . '.jpg';
-    $cmd = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta --get-cover=' . escapeshellarg($coverPath) . ' ' . escapeshellarg($filePath) . ' 2>/dev/null';
+    $cover_path = $cover_dir . DIRECTORY_SEPARATOR . $md5 . '.jpg';
+    $cmd = 'CALIBRE_SKIP_QT_INIT=1 ebook-meta --get-cover=' . escapeshellarg($cover_path) . ' ' . escapeshellarg($file_path) . ' 2>/dev/null';
     $output = shell_exec($cmd);
 
     if (empty($output) || strpos($output, 'Traceback') !== false) {
@@ -177,9 +179,9 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
     foreach ($lines as $line) {
         if (trim($line) === '' || strpos($line, ':') === false) continue;
 
-        [$keyPart, $valuePart] = array_pad(explode(':', $line, 2), 2, '');
-        $key = trim($keyPart);
-        $value = trim($valuePart);
+        [$key_part, $value_part] = array_pad(explode(':', $line, 2), 2, '');
+        $key = trim($key_part);
+        $value = trim($value_part);
 
         if ($value === '' || $value === 'Unknown') continue;
 
@@ -209,16 +211,16 @@ function extractMetadata(string $filePath, string $md5, string $coverDir): ?arra
     
     // 检查封面是否成功提取
     
-    if (is_file($coverPath) && filesize($coverPath) > 1024) {
-        $meta['cover_path'] = $coverPath;
+    if (is_file($cover_path) && filesize($cover_path) > 1024) {
+        $meta['cover_path'] = $cover_path;
     } else {
-        if (is_file($coverPath)) unlink($coverPath);
+        if (is_file($cover_path)) unlink($cover_path);
     }
 
     return $meta;
 }
 
-function copyAndDelete(string $src, string $dst): bool {
+function copy_and_delete(string $src, string $dst): bool {
     if (copy($src, $dst)) {
         return unlink($src);
     }

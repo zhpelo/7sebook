@@ -146,20 +146,20 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 ORDER BY DATE(created_at)
             ");
             $stmt->execute();
-            $userGrowthData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $user_growth_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             // 构建完整的7天数据
-            $dailyUserCounts = [];
+            $daily_user_counts = [];
             $dates = [];
             for ($i = 6; $i >= 0; $i--) {
                 $date = date('Y-m-d', strtotime("-$i days"));
                 $dates[] = $date;
-                $dailyUserCounts[$date] = 0;
+                $daily_user_counts[$date] = 0;
             }
 
             // 填充实际数据
-            foreach ($userGrowthData as $data) {
-                $dailyUserCounts[$data['date']] = (int)$data['user_count'];
+            foreach ($user_growth_data as $data) {
+                $daily_user_counts[$data['date']] = (int)$data['user_count'];
             }
 
             // 获取近7天电子书增长数据
@@ -173,18 +173,18 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 ORDER BY DATE(created_at)
             ");
             $stmt->execute();
-            $bookGrowthData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $book_growth_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             // 构建完整的7天电子书数据
-            $dailyBookCounts = [];
+            $daily_book_counts = [];
             for ($i = 6; $i >= 0; $i--) {
                 $date = date('Y-m-d', strtotime("-$i days"));
-                $dailyBookCounts[$date] = 0;
+                $daily_book_counts[$date] = 0;
             }
 
             // 填充实际数据
-            foreach ($bookGrowthData as $data) {
-                $dailyBookCounts[$data['date']] = (int)$data['book_count'];
+            foreach ($book_growth_data as $data) {
+                $daily_book_counts[$data['date']] = (int)$data['book_count'];
             }
     }
 
@@ -256,11 +256,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 $tags = trim($_POST['tags'] ?? '');
 
                 if ($title && $author) {
+                    $current_time = date('Y-m-d H:i:s');
                     $stmt = $pdo->prepare("
                         INSERT INTO books (title, author, description, category, publisher, page_count, file_name, file_path, file_size, file_format, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
-                    $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format]);
+                    $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format, $current_time]);
 
                     $book_id = $pdo->lastInsertId();
 
@@ -296,13 +297,14 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                 $tags = trim($_POST['tags'] ?? '');
 
                 if ($book_id && $title && $author) {
+                    $current_time = date('Y-m-d H:i:s');
                     $stmt = $pdo->prepare("
                         UPDATE books 
                         SET title = ?, author = ?, description = ?, category = ?, publisher = ?, page_count = ?, 
-                            file_name = ?, file_path = ?, file_size = ?, file_format = ?, updated_at = NOW()
+                            file_name = ?, file_path = ?, file_size = ?, file_format = ?, updated_at = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format, $book_id]);
+                    $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format, $current_time, $book_id]);
 
                     // 删除原有标签
                     $stmt = $pdo->prepare("DELETE FROM book_tags WHERE book_id = ?");
@@ -717,7 +719,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                                 labels: <?php echo json_encode($dates); ?>,
                                 datasets: [{
                                     label: '新增用户数',
-                                    data: <?php echo json_encode(array_values($dailyUserCounts)); ?>,
+                                    data: <?php echo json_encode(array_values($daily_user_counts)); ?>,
                                     borderColor: 'rgb(54, 162, 235)',
                                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
                                     tension: 0.1,
@@ -745,7 +747,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
                                 labels: <?php echo json_encode($dates); ?>,
                                 datasets: [{
                                     label: '新增电子书数',
-                                    data: <?php echo json_encode(array_values($dailyBookCounts)); ?>,
+                                    data: <?php echo json_encode(array_values($daily_book_counts)); ?>,
                                     borderColor: 'rgb(255, 99, 132)',
                                     backgroundColor: 'rgba(255, 99, 132, 0.2)',
                                     tension: 0.1,
