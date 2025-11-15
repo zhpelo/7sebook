@@ -1,7 +1,6 @@
 <?php
 // 网站前台页面
 session_start();
-require 'config.php';
 require 'common.php';
 
 // 检查数据库连接

@@ -1,7 +1,6 @@
 <?php
 // 管理员后台页面
 session_start();
-require 'config.php';
 require 'common.php';
 
 // 只允许管理员访问

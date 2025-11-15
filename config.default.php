@@ -5,13 +5,7 @@ date_default_timezone_set('Asia/Shanghai');
 // 设置DEBUG模式
 define('DEBUG', true);
 
-if (DEBUG) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-} else {
-    error_reporting(0);
-    ini_set('display_errors', 0);
-}
+
 
 // 数据库配置
 $host = 'localhost';

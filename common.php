@@ -5,12 +5,23 @@
  */
 
 // 确保 config.php 已加载
+require_once __DIR__ . '/config.php';
 if (!isset($host)) {
-    require_once __DIR__ . '/config.php';
+    die('找不到 数据库 配置文件');
 }
 
-// 设置时区为中国上海
-if (function_exists('date_default_timezone_set')) {
+if (defined('DEBUG') && DEBUG === true) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
+
+if(defined('TIMEZONE')) {
+    date_default_timezone_set(TIMEZONE);
+}else{
+    // 设置时区为中国上海
     date_default_timezone_set('Asia/Shanghai');
 }
 
