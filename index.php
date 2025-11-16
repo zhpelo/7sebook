@@ -295,11 +295,6 @@ if ($action === 'search') {
     $format = $_GET['format'] ?? ''; // 新增文件格式参数
     $page = max(1, intval($_GET['page'] ?? 1));
 
-    // 未登录用户只能查看第一页
-    if (!is_logged_in() && $page > 1) {
-        $page = 1;
-    }
-
     $limit = 20;
     $offset = ($page - 1) * $limit;
 
@@ -344,14 +339,23 @@ if ($action === 'search') {
         $end_time = microtime(true);
         $time_taken = round($end_time - $start_time, 3);
     } else {
-        // 没有搜索关键词时，显示最新的100本书
+        // 没有搜索关键词时，显示最新的书籍（支持分页）
         $start_time = microtime(true);
-        // $sql = "SELECT * FROM `books` WHERE `cover_url` !='' ORDER BY `id` Desc LIMIT 100";
-        $sql = "SELECT * FROM `books` ORDER BY `id` Desc LIMIT 100";
+        
+        // 获取总数
+        $count_sql = "SELECT COUNT(*) FROM books";
+        $stmt = $pdo->prepare($count_sql);
+        $stmt->execute();
+        $total = $stmt->fetchColumn();
+
+        // 获取分页数据
+        $sql = "SELECT * FROM `books` ORDER BY `id` Desc LIMIT :limit OFFSET :offset";
         $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $total = count($books);
+        
         $end_time = microtime(true);
         $time_taken = round($end_time - $start_time, 3);
     }
@@ -877,7 +881,7 @@ function build_page_url($query, $type, $new_page)
                     </div>
 
                     <!-- 分页 -->
-                    <?php if (!empty($query) && ($total ?? 0) > $limit): ?>
+                    <?php if ((!empty($query) || empty($query)) && ($total ?? 0) > $limit): ?>
                         <div class="flex flex-wrap justify-center items-center gap-2 mb-8">
                             <?php
                             $total_pages = ceil($total / $limit);
@@ -886,14 +890,14 @@ function build_page_url($query, $type, $new_page)
                             ?>
 
                             <?php if ($page > 1): ?>
-                                <a href="<?php echo build_page_url($query, $type, $page - 1); ?>" class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                                <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $page - 1); ?>" class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
                                     <i class="fas fa-chevron-left mr-1"></i> 上一页
                                 </a>
                             <?php endif; ?>
 
                             <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
                                 <?php if (is_logged_in() || $i == 1): ?>
-                                    <a href="<?php echo build_page_url($query, $type, $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600 border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
+                                    <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600 border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
                                         <?php echo $i; ?>
                                     </a>
                                 <?php else: ?>
@@ -903,7 +907,7 @@ function build_page_url($query, $type, $new_page)
                             <?php endfor; ?>
 
                             <?php if ($page < $total_pages && is_logged_in()): ?>
-                                <a href="<?php echo build_page_url($query, $type, $page + 1); ?>" class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                                <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $page + 1); ?>" class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
                                     下一页 <i class="fas fa-chevron-right ml-1"></i>
                                 </a>
                             <?php elseif ($page < $total_pages && !is_logged_in()): ?>
