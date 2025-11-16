@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if ($username && $password) {
         $user = verify_user_login($username, $password);
-        
+
         if ($user) {
             set_user_session($user);
             header('Location: ' . $_SERVER['PHP_SELF'] . '?' . http_build_query($_GET));
@@ -341,7 +341,7 @@ if ($action === 'search') {
     } else {
         // 没有搜索关键词时，显示最新的书籍（支持分页）
         $start_time = microtime(true);
-        
+
         // 获取总数
         $count_sql = "SELECT COUNT(*) FROM books";
         $stmt = $pdo->prepare($count_sql);
@@ -355,7 +355,7 @@ if ($action === 'search') {
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         $end_time = microtime(true);
         $time_taken = round($end_time - $start_time, 3);
     }
@@ -377,18 +377,18 @@ function build_page_url($query, $type, $new_page)
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php if ($action === 'detail' && $book): ?>
         <title><?php echo htmlspecialchars($book['title']); ?> - <?php echo htmlspecialchars($book['author']); ?> - 七秒电子书</title>
-        <meta name="description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160) ; ?>...">
+        <meta name="description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160); ?>...">
         <meta name="keywords" content="<?php echo htmlspecialchars($book['title']); ?>,<?php echo htmlspecialchars($book['author']); ?>,电子书下载,<?php echo htmlspecialchars($book['category'] ?? ''); ?>,<?php echo htmlspecialchars($book['file_format']); ?>电子书">
         <meta property="og:title" content="<?php echo htmlspecialchars($book['title']); ?>">
-        <meta property="og:description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160) ; ?>...">
+        <meta property="og:description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160); ?>...">
         <meta property="og:type" content="book">
-        <meta property="og:image" content="<?php echo "https://".$_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
+        <meta property="og:image" content="<?php echo "https://" . $_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
         <meta property="og:url" content="<?php echo 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
         <meta property="og:site_name" content="七秒电子书">
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:title" content="<?php echo htmlspecialchars($book['title']); ?>">
-        <meta name="twitter:description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160) ; ?>...">
-        <meta name="twitter:image" content="<?php echo "https://".$_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
+        <meta name="twitter:description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160); ?>...">
+        <meta name="twitter:image" content="<?php echo "https://" . $_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
     <?php else: ?>
         <title><?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书 - 地表最强电子书搜索引擎'; ?></title>
         <meta name="description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果，提供PDF、EPUB、MOBI等格式免费下载' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
@@ -414,10 +414,15 @@ function build_page_url($query, $type, $new_page)
         gtag('config', 'G-S1VQ1GTE0R');
     </script>
     <script type="text/javascript">
-        (function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        (function(c, l, a, r, i, t, y) {
+            c[a] = c[a] || function() {
+                (c[a].q = c[a].q || []).push(arguments)
+            };
+            t = l.createElement(r);
+            t.async = 1;
+            t.src = "https://www.clarity.ms/tag/" + i;
+            y = l.getElementsByTagName(r)[0];
+            y.parentNode.insertBefore(t, y);
         })(window, document, "clarity", "script", "u6azio9pp0");
     </script>
 </head>
@@ -600,16 +605,18 @@ function build_page_url($query, $type, $new_page)
                 <div class="p-6">
                     <div class="flex flex-col md:flex-row">
                         <div class="md:w-1/3 mb-6 md:mb-0 md:pr-6">
-                            <div class="bg-gray-100 flex items-center justify-center rounded-lg">
-                                <?php if ($book['cover_url']): ?>
+                            <?php if ($book['cover_url']): ?>
+                                <div class="bg-gray-100 flex items-center justify-center rounded-lg">
                                     <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover rounded-lg">
-                                <?php else: ?>
+                                </div>
+                            <?php else: ?>
+                                <div class="bg-gray-100 flex items-center justify-center rounded-lg aspect-[2/3]">
                                     <div class="text-gray-400 text-center p-4">
                                         <i class="fas fa-book text-6xl mb-4"></i>
                                         <div class="text-xl"><?php echo $book['title']; ?></div>
                                     </div>
-                                <?php endif; ?>
-                            </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <div class="md:w-2/3">
                             <h1 class="text-3xl font-bold text-gray-800 mb-4"><?php echo htmlspecialchars($book['title']); ?></h1>
@@ -720,11 +727,11 @@ function build_page_url($query, $type, $new_page)
                             </div>
                             <div class="p-4">
                                 <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query ?? ''); ?></h3>
-                                <?php if($book['author']): ?>
-                                <p class="text-gray-600 mb-2 flex items-center">
-                                    <i class="fas fa-user text-sm mr-2"></i>
-                                    <?php echo empty($query) ? $book['author'] : highlight_matches($book['author'], $query); ?>
-                                </p>
+                                <?php if ($book['author']): ?>
+                                    <p class="text-gray-600 mb-2 flex items-center">
+                                        <i class="fas fa-user text-sm mr-2"></i>
+                                        <?php echo empty($query) ? $book['author'] : highlight_matches($book['author'], $query); ?>
+                                    </p>
                                 <?php endif; ?>
                                 <!-- 添加文件格式和大小信息 -->
                                 <div class="mt-2 flex justify-between items-center text-xs">
@@ -862,11 +869,11 @@ function build_page_url($query, $type, $new_page)
                                     </div>
                                     <div class="p-4">
                                         <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query ?? ''); ?></h3>
-                                        <?php if($book['author']): ?>
-                                        <p class="text-gray-600 mb-2 flex items-center">
-                                            <i class="fas fa-user text-sm mr-2"></i>
-                                            <?php echo empty($query) ? $book['author'] : highlight_matches($book['author'], $query); ?>
-                                        </p>
+                                        <?php if ($book['author']): ?>
+                                            <p class="text-gray-600 mb-2 flex items-center">
+                                                <i class="fas fa-user text-sm mr-2"></i>
+                                                <?php echo empty($query) ? $book['author'] : highlight_matches($book['author'], $query); ?>
+                                            </p>
                                         <?php endif; ?>
                                         <!-- 添加文件格式和大小信息 -->
                                         <div class="mt-2 flex justify-between items-center text-xs">
