@@ -547,3 +547,23 @@ define('SUPPORTED_EXTS', [
 // 兼容旧代码的变量
 $supported_exts = SUPPORTED_EXTS;
 
+//清理或转换字符串为合法 UTF-8
+function clean_to_utf8($str, $fromEncoding = 'auto') {
+    // 如果已经是合法 UTF-8，直接返回
+    if (mb_check_encoding($str, 'UTF-8')) {
+        return $str;
+    }
+
+    // 尝试检测原始编码（可指定来源编码，如 'GBK', 'ISO-8859-1' 等）
+    $encoding = mb_detect_encoding($str, ['UTF-8', 'GBK', 'GB2312', 'ASCII', 'ISO-8859-1'], true);
+
+    if ($encoding && $encoding !== 'UTF-8') {
+        $str = mb_convert_encoding($str, 'UTF-8', $encoding);
+    } else {
+        // 如果无法识别，强制转为 UTF-8 并忽略非法字符
+        $str = mb_convert_encoding($str, 'UTF-8', 'UTF-8');
+    }
+
+    // 最后一步：移除无法表示的字符（保险起见）
+    return mb_encode_numericentity($str, [0x0080, 0xffff, 0, 0xffff], 'UTF-8');
+}

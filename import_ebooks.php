@@ -171,7 +171,7 @@ function extract_metadata(string $file_path, string $md5, string $cover_dir): ?a
                 // 兼容中文的字符截取
                 $meta['description'] = mb_strlen($content, 'UTF-8') > 300 ? mb_substr($content, 0, 300, 'UTF-8')."..." : $content;
                 // 去除首尾空格
-                $meta['description'] = trim($meta['description']);
+                $meta['description'] = trim(clean_to_utf8($meta['description']));
             }
         }
         
