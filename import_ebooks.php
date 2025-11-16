@@ -165,6 +165,8 @@ function extract_metadata(string $file_path, string $md5, string $cover_dir): ?a
         // 读取文件内容的前150个字符作为描述
         if (is_readable($file_path)) {
             $content = file_get_contents($file_path);
+            // 使用 preg_replace 去除所有空白字符（包括空格、换行、回车、制表符等）
+            $content = preg_replace('/\s+/', '', $content);
             if ($content !== false) {
                 // 兼容中文的字符截取
                 $meta['description'] = mb_strlen($content, 'UTF-8') > 150 ? mb_substr($content, 0, 150, 'UTF-8') : $content;
