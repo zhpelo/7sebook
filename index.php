@@ -720,10 +720,12 @@ function build_page_url($query, $type, $new_page)
                             </div>
                             <div class="p-4">
                                 <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query ?? ''); ?></h3>
+                                <?php if($book['author']): ?>
                                 <p class="text-gray-600 mb-2 flex items-center">
                                     <i class="fas fa-user text-sm mr-2"></i>
                                     <?php echo empty($query) ? $book['author'] : highlight_matches($book['author'], $query); ?>
                                 </p>
+                                <?php endif; ?>
                                 <!-- 添加文件格式和大小信息 -->
                                 <div class="mt-2 flex justify-between items-center text-xs">
                                     <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded"><?php echo htmlspecialchars($book['file_format']); ?></span>
