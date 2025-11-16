@@ -57,7 +57,7 @@ foreach ($files as $file_path) {
     }
 
     $file_info = new SplFileInfo($file_path);
-    $ext = strtolower($file_info->getExtension());
+    $file_format = strtolower($file_info->getExtension());
     $file_name = $file_info->getFilename();
     $file_size = $file_info->getSize();
 
@@ -90,9 +90,10 @@ foreach ($files as $file_path) {
         continue;
     }
 
-    $new_name = $md5 . '.' . $ext;
+    $new_name = $md5 . '.' . $file_format;
     $dest_path = $success_dir . DIRECTORY_SEPARATOR . $new_name;
     
+
     // 插入数据库
     $current_time = get_current_time();
     $stmt = $pdo->prepare("
@@ -109,8 +110,8 @@ foreach ($files as $file_path) {
     ");
     try {
         $stmt->execute([
-            $md5, $file_name, $ext, $file_size,
-            $meta['title'],     $meta['authors'],       $meta['description'],
+            $md5, $file_name, $file_forma, $file_size,
+            $meta['title'] ?? $file_name,     $meta['authors'],       $meta['description'],
             $meta['languages'], $meta['publisher'],     $meta['published_at'], $meta['identifiers'],
             str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null, str_replace(__DIR__, '', $dest_path), $current_time,
         ]);
@@ -145,6 +146,34 @@ echo "所有文件处理完成！\n";
  * 提取电子书完整元数据（支持 Title, Author(s), Publisher, Languages, Published, Identifiers）
  */
 function extract_metadata(string $file_path, string $md5, string $cover_dir): ?array {
+     // 初始化所有字段
+    $meta = [
+        'title'        => null,
+        'authors'      => null,
+        'publisher'    => null,
+        'languages'    => null,
+        'published_at' => null,   // 注意：这是 DATETIME，不是字符串
+        'identifiers'  => null,
+        'description'      => null,
+        'cover_path'   => null,
+    ];
+
+    // 特殊处理txt文件
+    $pathinfo = pathinfo($file_path);
+    if (isset($pathinfo['extension']) && strtolower($pathinfo['extension']) === 'txt') {
+        $meta[ 'title' ] = $pathinfo['filename'];
+        // 读取文件内容的前150个字符作为描述
+        if (is_readable($file_path)) {
+            $content = file_get_contents($file_path);
+            if ($content !== false) {
+                // 兼容中文的字符截取
+                $meta['description'] = mb_strlen($content, 'UTF-8') > 150 ? mb_substr($content, 0, 150, 'UTF-8') : $content;
+            }
+        }
+        
+        return $meta;
+    }
+    
     if (!is_dir($cover_dir)) {
         mkdir($cover_dir, 0755, true);
     }
@@ -159,17 +188,7 @@ function extract_metadata(string $file_path, string $md5, string $cover_dir): ?a
         return null;
     }
 
-    // 初始化所有字段
-    $meta = [
-        'title'        => null,
-        'authors'      => null,
-        'publisher'    => null,
-        'languages'    => null,
-        'published_at' => null,   // 注意：这是 DATETIME，不是字符串
-        'identifiers'  => null,
-        'description'      => null,
-        'cover_path'   => null,
-    ];
+   
 
     // 按行解析
     $lines = explode("\n", $output);
