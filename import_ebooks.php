@@ -110,7 +110,7 @@ foreach ($files as $file_path) {
     ");
     try {
         $stmt->execute([
-            $md5, $file_name, $file_forma, $file_size,
+            $md5, $file_name, $file_format, $file_size,
             $meta['title'] ?? $file_name,     $meta['authors'],       $meta['description'],
             $meta['languages'], $meta['publisher'],     $meta['published_at'], $meta['identifiers'],
             str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null, str_replace(__DIR__, '', $dest_path), $current_time,
