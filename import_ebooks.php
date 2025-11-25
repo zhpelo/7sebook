@@ -109,11 +109,34 @@ foreach ($files as $file_path) {
         ?, ?, ?)
     ");
     try {
+        // 确保文本字段不超过数据库限制，同时兼容中文字符
+        // 根据新表结构进行字段长度适配
+        $title = mb_substr($meta['title'] ?? $file_name, 0, 255, 'UTF-8');
+        $authors = mb_substr($meta['authors'] ?? '', 0, 255, 'UTF-8');
+        $description = $meta['description'] ?? '';
+        $languages = mb_substr($meta['languages'] ?? '', 0, 50, 'UTF-8');
+        $publisher = mb_substr($meta['publisher'] ?? '', 0, 100, 'UTF-8');
+        $identifiers = mb_substr($meta['identifiers'] ?? '', 0, 65535, 'UTF-8'); // TEXT字段
+        $cover_url = mb_substr(str_replace(__DIR__, '', $meta['cover_path'] ?? ""), 0, 500, 'UTF-8');
+        $file_path_value = mb_substr(str_replace(__DIR__, '', $dest_path), 0, 255, 'UTF-8');
+        $file_name_value = mb_substr($file_name, 0, 255, 'UTF-8');
+        // $file_size_value = mb_substr((string)$file_size, 0, 10, 'UTF-8');
+        
         $stmt->execute([
-            $md5, $file_name, $file_format, $file_size,
-            $meta['title'] ?? $file_name,     $meta['authors'],       $meta['description'],
-            $meta['languages'], $meta['publisher'],     $meta['published_at'], $meta['identifiers'],
-            str_replace(__DIR__, '', $meta['cover_path'] ?? "" ) ?? null, str_replace(__DIR__, '', $dest_path), $current_time,
+            $md5, 
+            $file_name_value,
+            $file_format, 
+            $file_size,
+            $title,     
+            $authors,       
+            $description,
+            $languages, 
+            $publisher,     
+            $meta['published_at'], 
+            $identifiers,
+            $cover_url, 
+            $file_path_value, 
+            $current_time,
         ]);
     } catch (PDOException $e) {
         echo "❌ 插入数据库失败: " . $e->getMessage() . "\n";
