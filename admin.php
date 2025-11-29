@@ -1545,7 +1545,7 @@ function build_page_url($action, $new_page)
                                                 </span>
                                             </td>
                                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
-                                                <?php echo htmlspecialchars($book['file_size'] ?? '-'); ?>
+                                                <?php echo format_file_size($book['file_size'] ?? '-'); ?>
                                             </td>
                                             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
                                                 <div class="flex items-center gap-2">
