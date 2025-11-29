@@ -139,7 +139,7 @@ switch ($action) {
         $daily_download_counts = [];
         $download_dates = [];
         for ($i = 27; $i >= 0; $i--) {
-            $date = date('Y-m-d', strtotime("-$i days"));
+            $date = date('m-d', strtotime("-$i days"));
             $download_dates[] = $date;
             $daily_download_counts[$date] = 0;
         }
@@ -645,7 +645,7 @@ function build_page_url($action, $new_page)
 
 <body class="bg-gray-50">
     <!-- 移动端遮罩层 -->
-    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden transition-opacity duration-300" onclick="toggleSidebar()"></div>
+    <a href="#" data-action="toggle-sidebar" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden transition-opacity duration-300" id="overlay"></a>
 
     <!-- 侧边栏 -->
     <aside id="adminSidebar" class="fixed top-0 left-0 h-screen w-64 bg-gray-800 text-white z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out overflow-y-auto">
@@ -691,9 +691,9 @@ function build_page_url($action, $new_page)
 
     <!-- 移动端顶部栏 -->
     <header class="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-md z-30 px-4 py-3 flex items-center justify-between">
-        <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-gray-100">
+        <a href="#" data-action="toggle-sidebar" class="p-2 rounded-lg hover:bg-gray-100">
             <i class="fas fa-bars text-gray-700"></i>
-        </button>
+        </a>
         <h1 class="text-lg font-bold text-gray-800">七秒后台</h1>
         <div class="w-10"></div>
     </header>
@@ -930,9 +930,9 @@ function build_page_url($action, $new_page)
                 <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                         <h2 class="text-2xl font-bold text-gray-800">用户管理</h2>
-                        <button onclick="openModal('addUserModal')" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
+                        <a href="#" data-modal="addUserModal" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
                         <i class="fas fa-plus mr-2"></i> 添加用户
-                    </button>
+                    </a>
                 </div>
 
                     <!-- 搜索和批量操作栏 -->
@@ -944,7 +944,7 @@ function build_page_url($action, $new_page)
                                 class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <button type="submit" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                                 <i class="fas fa-search"></i>
-                            </button>
+                    </button>
                             <?php if (!empty($user_search)): ?>
                                 <a href="?action=users" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
                                     <i class="fas fa-times"></i>
@@ -952,14 +952,14 @@ function build_page_url($action, $new_page)
                             <?php endif; ?>
                         </form>
                         <div id="batchActions" class="hidden flex gap-2">
-                            <button onclick="batchDeleteUsers()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                            <a href="#" data-action="batch-delete-users" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                                 <i class="fas fa-trash mr-2"></i> 批量删除
-                            </button>
-                            <button onclick="clearSelection()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                            </a>
+                            <a href="#" data-action="clear-selection" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
                                 取消选择
-                            </button>
+                            </a>
                         </div>
-                    </div>
+                </div>
 
                     <!-- 表格 -->
                 <div class="overflow-x-auto">
@@ -1003,10 +1003,16 @@ function build_page_url($action, $new_page)
                                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell"><?php echo $user['created_at']; ?></td>
                                             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
                                                 <div class="flex items-center gap-2">
-                                                    <button onclick="openEditUserModal(<?php echo $user['id']; ?>, '<?php echo addslashes($user['username']); ?>', '<?php echo addslashes($user['email']); ?>', '<?php echo $user['role']; ?>')" 
-                                                        class="text-green-600 hover:text-green-900 p-1">
+                                                    <a href="#" 
+                                                        data-action="edit-user"
+                                                        data-user-id="<?php echo $user['id']; ?>"
+                                                        data-username="<?php echo htmlspecialchars($user['username'], ENT_QUOTES); ?>"
+                                                        data-email="<?php echo htmlspecialchars($user['email'], ENT_QUOTES); ?>"
+                                                        data-role="<?php echo htmlspecialchars($user['role'], ENT_QUOTES); ?>"
+                                                        class="text-green-600 hover:text-green-900 p-1 inline-flex items-center justify-center cursor-pointer rounded hover:bg-green-50 transition-colors"
+                                                        title="编辑用户">
                                                         <i class="fas fa-edit"></i>
-                                        </button>
+                                                    </a>
                                         <form method="POST" class="inline" onsubmit="return confirm('确定要删除此用户吗？')">
                                             <input type="hidden" name="form_action" value="delete_user">
                                             <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
@@ -1249,12 +1255,12 @@ function build_page_url($action, $new_page)
                             <?php endif; ?>
                         </form>
                         <div id="batchActions" class="hidden flex gap-2">
-                            <button onclick="batchDeleteBooks()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                            <a href="#" data-action="batch-delete-books" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                                 <i class="fas fa-trash mr-2"></i> 批量删除
-                            </button>
-                            <button onclick="clearSelection()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                            </a>
+                            <a href="#" data-action="clear-selection" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
                                 取消选择
-                            </button>
+                            </a>
                         </div>
                     </div>
 
@@ -1555,9 +1561,9 @@ function build_page_url($action, $new_page)
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                         <h2 class="text-2xl font-bold text-gray-800">标签管理</h2>
                         <div class="flex items-center gap-2">
-                            <button onclick="openModal('mergeTagModal')" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center">
+                            <a href="#" data-modal="mergeTagModal" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center">
                             <i class="fas fa-compress mr-2"></i> 合并标签
-                        </button>
+                        </a>
                     </div>
                 </div>
 
@@ -1645,16 +1651,21 @@ function build_page_url($action, $new_page)
                                         </td>
                                         <td>
                                             <div class="flex items-center gap-2">
-                                                <button onclick="openEditTagModal('<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>')"
+                                                <a href="#" 
+                                                    data-action="edit-tag"
+                                                    data-tag-name="<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>"
                                                     class="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-50 transition-colors"
                                                     title="编辑标签">
                                                     <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button onclick="showTagBooks('<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($tag['book_ids'], ENT_QUOTES); ?>')"
+                                                </a>
+                                                <a href="#" 
+                                                    data-action="show-tag-books"
+                                                    data-tag-name="<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>"
+                                                    data-book-ids="<?php echo htmlspecialchars($tag['book_ids'], ENT_QUOTES); ?>"
                                                     class="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                                                     title="查看关联书籍">
                                                     <i class="fas fa-book"></i>
-                                                </button>
+                                                </a>
                                                 <form method="POST" class="inline" onsubmit="return confirm('确定要删除标签 \" <?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>\" 吗？\n\n这将删除该标签与所有书籍的关联关系！')">
                                                     <input type="hidden" name="form_action" value="delete_tag">
                                                     <input type="hidden" name="tag_name" value="<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>">
@@ -1730,16 +1741,15 @@ function build_page_url($action, $new_page)
     </main>
 
     <!-- 编辑标签模态框 -->
-    <!-- 编辑标签模态框 -->
     <div id="editTagModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
         <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-black bg-opacity-50 modal-overlay" data-modal="editTagModal"></div>
+            <a href="#" data-modal="editTagModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
             <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">编辑标签</h3>
-                    <button onclick="closeModal('editTagModal')" class="text-gray-400 hover:text-gray-600">
+                    <a href="#" data-modal="editTagModal" data-close="true" class="text-gray-400 hover:text-gray-600">
                     <i class="fas fa-times"></i>
-                </button>
+                </a>
             </div>
             <form method="POST">
                 <input type="hidden" name="form_action" value="edit_tag">
@@ -1750,7 +1760,7 @@ function build_page_url($action, $new_page)
                         <p class="text-xs text-gray-500 mt-1">如果新标签名已存在，系统会自动合并</p>
                 </div>
                     <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeModal('editTagModal')" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</button>
+                        <a href="#" data-modal="editTagModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
                         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">保存</button>
                 </div>
             </form>
@@ -1760,15 +1770,15 @@ function build_page_url($action, $new_page)
     <!-- 合并标签模态框 -->
     <div id="mergeTagModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
         <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-black bg-opacity-50 modal-overlay" onclick="closeModal('mergeTagModal')"></div>
+            <a href="#" data-modal="mergeTagModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
             <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">合并标签</h3>
-                    <button onclick="closeModal('mergeTagModal')" class="text-gray-400 hover:text-gray-600">
+                    <a href="#" data-modal="mergeTagModal" data-close="true" class="text-gray-400 hover:text-gray-600">
                     <i class="fas fa-times"></i>
-                </button>
+                </a>
             </div>
-            <form method="POST">
+                <form method="POST" id="mergeTagForm">
                 <input type="hidden" name="form_action" value="merge_tags">
                     <div class="space-y-4 mb-4">
                         <div>
@@ -1790,8 +1800,8 @@ function build_page_url($action, $new_page)
                         <p class="text-sm mt-1">此操作不可逆，请确认源标签和目标标签名称正确！</p>
                     </div>
                     <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeModal('mergeTagModal')" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</button>
-                        <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors" onclick="return confirm('确定要合并标签吗？此操作不可逆！')">确认合并</button>
+                        <a href="#" data-modal="mergeTagModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
+                        <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">确认合并</button>
                 </div>
             </form>
             </div>
@@ -1803,15 +1813,15 @@ function build_page_url($action, $new_page)
         <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; width:90%; max-width:600px; max-height:80vh; overflow-y:auto;">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold" id="tagBooksTitle">标签关联的书籍</h3>
-                <button onclick="closeModal('tagBooksModal')" class="text-gray-500 hover:text-gray-700">
+                <a href="#" data-modal="tagBooksModal" data-close="true" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
-                </button>
+                </a>
             </div>
             <div id="tagBooksList" class="border rounded-lg overflow-hidden">
                 <!-- 书籍列表将在这里动态加载 -->
             </div>
             <div class="flex justify-end mt-4">
-                <button onclick="closeModal('tagBooksModal')" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">关闭</button>
+                <a href="#" data-modal="tagBooksModal" data-close="true" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-block">关闭</a>
             </div>
         </div>
     </div>
@@ -1819,13 +1829,13 @@ function build_page_url($action, $new_page)
     <!-- 添加用户模态框 -->
     <div id="addUserModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
         <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-black bg-opacity-50 modal-overlay" onclick="closeModal('addUserModal')"></div>
+            <a href="#" data-modal="addUserModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
             <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">添加用户</h3>
-                    <button onclick="closeModal('addUserModal')" class="text-gray-400 hover:text-gray-600">
+                    <a href="#" data-modal="addUserModal" data-close="true" class="text-gray-400 hover:text-gray-600">
                         <i class="fas fa-times"></i>
-                    </button>
+                    </a>
                 </div>
             <form method="POST">
                 <input type="hidden" name="form_action" value="add_user">
@@ -1851,7 +1861,7 @@ function build_page_url($action, $new_page)
                 </div>
                     </div>
                     <div class="flex justify-end gap-2 mt-6">
-                        <button type="button" onclick="closeModal('addUserModal')" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</button>
+                        <a href="#" data-modal="addUserModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
                         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">添加</button>
                 </div>
             </form>
@@ -1862,13 +1872,13 @@ function build_page_url($action, $new_page)
     <!-- 编辑用户模态框 -->
     <div id="editUserModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
         <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-black bg-opacity-50 modal-overlay" onclick="closeModal('editUserModal')"></div>
+            <a href="#" data-modal="editUserModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
             <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">编辑用户</h3>
-                    <button onclick="closeModal('editUserModal')" class="text-gray-400 hover:text-gray-600">
+                    <a href="#" data-modal="editUserModal" data-close="true" class="text-gray-400 hover:text-gray-600">
                         <i class="fas fa-times"></i>
-                    </button>
+                    </a>
                 </div>
             <form method="POST">
                 <input type="hidden" name="form_action" value="edit_user">
@@ -1895,7 +1905,7 @@ function build_page_url($action, $new_page)
                 </div>
                     </div>
                     <div class="flex justify-end gap-2 mt-6">
-                        <button type="button" onclick="closeModal('editUserModal')" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</button>
+                        <a href="#" data-modal="editUserModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
                         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">更新</button>
                 </div>
             </form>
@@ -1907,13 +1917,13 @@ function build_page_url($action, $new_page)
     <!-- 添加标签模态框 -->
     <div id="addTagModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
         <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-black bg-opacity-50 modal-overlay" onclick="closeModal('addTagModal')"></div>
+            <a href="#" data-modal="addTagModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
             <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold text-gray-800">添加标签</h3>
-                    <button onclick="closeModal('addTagModal')" class="text-gray-400 hover:text-gray-600">
+                    <a href="#" data-modal="addTagModal" data-close="true" class="text-gray-400 hover:text-gray-600">
                         <i class="fas fa-times"></i>
-                    </button>
+                    </a>
                 </div>
             <form method="POST">
                 <input type="hidden" name="form_action" value="add_tag">
@@ -1928,7 +1938,7 @@ function build_page_url($action, $new_page)
                 </div>
                     </div>
                     <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeModal('addTagModal')" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</button>
+                        <a href="#" data-modal="addTagModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
                         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">添加</button>
                 </div>
             </form>
@@ -2059,11 +2069,27 @@ function build_page_url($action, $new_page)
 
         // 编辑用户模态框
         function openEditUserModal(id, username, email, role) {
-            document.getElementById('edit_user_id').value = id;
-            document.getElementById('edit_username').value = username;
-            document.getElementById('edit_email').value = email;
-            document.getElementById('edit_role').value = role;
-            openModal('editUserModal');
+            console.log('打开编辑用户模态框:', {id, username, email, role});
+            const editUserId = document.getElementById('edit_user_id');
+            const editUsername = document.getElementById('edit_username');
+            const editEmail = document.getElementById('edit_email');
+            const editRole = document.getElementById('edit_role');
+            
+            if (editUserId && editUsername && editEmail && editRole) {
+                editUserId.value = id || '';
+                editUsername.value = username || '';
+                editEmail.value = email || '';
+                editRole.value = role || 'user';
+                openModal('editUserModal');
+            } else {
+                console.error('找不到编辑用户模态框的元素:', {
+                    editUserId: !!editUserId,
+                    editUsername: !!editUsername,
+                    editEmail: !!editEmail,
+                    editRole: !!editRole
+                });
+                alert('无法打开编辑用户对话框，请刷新页面重试');
+            }
         }
 
         // ESC键关闭模态框
@@ -2078,13 +2104,110 @@ function build_page_url($action, $new_page)
             }
         });
 
-        // 点击模态框外部关闭
+        // 点击模态框外部关闭（已通过 data-close 属性处理，这里保留作为备用）
         document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal-overlay')) {
+            if (e.target.classList.contains('modal-overlay') && e.target.hasAttribute('data-close')) {
                 const modal = e.target.closest('[id$="Modal"]');
                 if (modal) {
                     closeModal(modal.id);
                 }
+            }
+        });
+
+        // 使用事件委托处理所有链接点击
+        document.addEventListener('click', function(e) {
+            // 使用 closest 查找最近的带有 data-action 或 data-modal 的 a 标签
+            const target = e.target.closest('a[data-action], a[data-modal]');
+            if (!target) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const action = target.getAttribute('data-action');
+            const modal = target.getAttribute('data-modal');
+            
+            console.log('链接点击事件:', {action, modal, target});
+            
+            // 处理模态框操作
+            if (modal) {
+                if (target.hasAttribute('data-close')) {
+                    closeModal(modal);
+                } else {
+                    openModal(modal);
+                }
+                return;
+            }
+            
+            // 处理侧边栏切换
+            if (action === 'toggle-sidebar') {
+                toggleSidebar();
+                return;
+            }
+            
+            // 处理批量删除用户
+            if (action === 'batch-delete-users') {
+                batchDeleteUsers();
+                return;
+            }
+            
+            // 处理批量删除书籍
+            if (action === 'batch-delete-books') {
+                batchDeleteBooks();
+                return;
+            }
+            
+            // 处理清除选择
+            if (action === 'clear-selection') {
+                clearSelection();
+                return;
+            }
+            
+            // 处理编辑用户
+            if (action === 'edit-user') {
+                const id = target.getAttribute('data-user-id');
+                const username = target.getAttribute('data-username');
+                const email = target.getAttribute('data-email');
+                const role = target.getAttribute('data-role');
+                console.log('编辑用户点击:', {id, username, email, role, allAttrs: Array.from(target.attributes).map(a => a.name + '=' + a.value)});
+                if (id && username && email && role) {
+                    openEditUserModal(id, username, email, role);
+                } else {
+                    console.error('编辑用户参数不完整:', {id, username, email, role});
+                    alert('编辑用户参数不完整，请刷新页面重试');
+                }
+                return;
+            }
+            
+            // 处理编辑标签
+            if (target.getAttribute('data-action') === 'edit-tag') {
+                const tagName = target.getAttribute('data-tag-name');
+                if (tagName) {
+                    openEditTagModal(tagName);
+                }
+                return;
+            }
+            
+            // 处理显示标签书籍
+            if (target.getAttribute('data-action') === 'show-tag-books') {
+                const tagName = target.getAttribute('data-tag-name');
+                const bookIds = target.getAttribute('data-book-ids');
+                if (tagName && bookIds) {
+                    showTagBooks(tagName, bookIds);
+                }
+                return;
+            }
+        });
+
+        // 处理合并标签表单提交确认
+        document.addEventListener('DOMContentLoaded', function() {
+            const mergeTagForm = document.getElementById('mergeTagForm');
+            if (mergeTagForm) {
+                mergeTagForm.addEventListener('submit', function(e) {
+                    if (!confirm('确定要合并标签吗？此操作不可逆！')) {
+                        e.preventDefault();
+                        return false;
+                    }
+                });
             }
         });
     </script>
