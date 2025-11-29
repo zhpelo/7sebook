@@ -236,12 +236,422 @@ switch ($action) {
             $book = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$book) {
-                $error = '电子书不存在';
-                $action = 'books';
+                header('Location: ?action=books&error=' . urlencode('电子书不存在'));
+                exit;
+            }
+            
+            // 如果是POST请求，处理更新电子书
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $title = trim($_POST['title'] ?? '');
+                $author = trim($_POST['author'] ?? '');
+                $description = trim($_POST['description'] ?? '');
+                $category = trim($_POST['category'] ?? '');
+                $publisher = trim($_POST['publisher'] ?? '');
+                $page_count = intval($_POST['page_count'] ?? 0);
+                $file_name = trim($_POST['file_name'] ?? '');
+                $file_path = trim($_POST['file_path'] ?? '');
+                $file_size = trim($_POST['file_size'] ?? '');
+                $file_format = trim($_POST['file_format'] ?? '');
+                $tags = trim($_POST['tags'] ?? '');
+
+                if ($title && $author) {
+                    $current_time = get_current_time();
+                    $stmt = $pdo->prepare("
+                        UPDATE books 
+                        SET title = ?, author = ?, description = ?, category = ?, publisher = ?, page_count = ?, 
+                            file_name = ?, file_path = ?, file_size = ?, file_format = ?, updated_at = ?
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format, $current_time, $book_id]);
+
+                    // 删除原有标签
+                    $stmt = $pdo->prepare("DELETE FROM book_tags WHERE book_id = ?");
+                    $stmt->execute([$book_id]);
+
+                    // 添加新标签
+                    if ($tags) {
+                        $tag_list = array_filter(array_map('trim', explode(',', $tags)));
+                        $current_time = get_current_time();
+                        foreach ($tag_list as $tag) {
+                            if ($tag) {
+                                $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
+                                $tag_stmt->execute([$book_id, $tag, $current_time]);
+                            }
+                        }
+                    }
+
+                    header('Location: ?action=books&message=' . urlencode('电子书信息更新成功'));
+                    exit;
+                } else {
+                    $error = '请填写必填字段（标题、作者）';
+                }
             }
         } else {
-            $error = '未指定电子书ID';
-            $action = 'books';
+            header('Location: ?action=books&error=' . urlencode('未指定电子书ID'));
+            exit;
+        }
+        break;
+
+    case 'add_user':
+        // 如果是POST请求，处理添加用户
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $username = trim($_POST['username'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $email = trim($_POST['email'] ?? '');
+            $role = $_POST['role'] ?? 'user';
+
+            if ($username && $password && $email) {
+                $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, role) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$username, $password_hash, $email, $role]);
+                header('Location: ?action=users&message=' . urlencode('用户添加成功'));
+                exit;
+            } else {
+                $error = '请填写完整信息';
+            }
+        }
+        break;
+
+    case 'edit_user':
+        $user_id = intval($_GET['id'] ?? 0);
+        if ($user_id) {
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $edit_user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$edit_user) {
+                header('Location: ?action=users&error=' . urlencode('用户不存在'));
+                exit;
+            }
+            
+            // 如果是POST请求，处理更新用户
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $username = trim($_POST['username'] ?? '');
+                $email = trim($_POST['email'] ?? '');
+                $role = $_POST['role'] ?? 'user';
+                $new_password = $_POST['password'] ?? '';
+
+                if ($username && $email) {
+                    if ($new_password) {
+                        $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+                        $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ?, password_hash = ? WHERE id = ?");
+                        $stmt->execute([$username, $email, $role, $password_hash, $user_id]);
+                    } else {
+                        $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ? WHERE id = ?");
+                        $stmt->execute([$username, $email, $role, $user_id]);
+                    }
+                    header('Location: ?action=users&message=' . urlencode('用户信息更新成功'));
+                    exit;
+                } else {
+                    $error = '请填写完整信息';
+                }
+            }
+        } else {
+            header('Location: ?action=users&error=' . urlencode('未指定用户ID'));
+            exit;
+        }
+        break;
+
+    case 'delete_user':
+        $user_id = intval($_GET['id'] ?? 0);
+        $confirm = $_GET['confirm'] ?? '';
+        if ($user_id && $confirm === 'yes') {
+            $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            header('Location: ?action=users&message=' . urlencode('用户删除成功'));
+            exit;
+        } elseif ($user_id) {
+            // 显示确认页面
+            $stmt = $pdo->prepare("SELECT id, username FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $delete_user = $stmt->fetch(PDO::FETCH_ASSOC);
+        } else {
+            header('Location: ?action=users&error=' . urlencode('未指定用户ID'));
+            exit;
+        }
+        break;
+
+    case 'batch_delete_users':
+        $user_ids = $_GET['ids'] ?? '';
+        $confirm = $_GET['confirm'] ?? '';
+        if ($user_ids && $confirm === 'yes') {
+            $ids = explode(',', $user_ids);
+            $ids = array_filter(array_map('intval', $ids));
+            if (!empty($ids)) {
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $stmt = $pdo->prepare("DELETE FROM users WHERE id IN ($placeholders)");
+                $stmt->execute($ids);
+                header('Location: ?action=users&message=' . urlencode('已成功删除 ' . count($ids) . ' 个用户'));
+                exit;
+            }
+        }
+        header('Location: ?action=users');
+        exit;
+
+    case 'add_book':
+        // 如果是POST请求，处理添加电子书
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $title = trim($_POST['title'] ?? '');
+            $author = trim($_POST['author'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+            $category = trim($_POST['category'] ?? '');
+            $publisher = trim($_POST['publisher'] ?? '');
+            $page_count = intval($_POST['page_count'] ?? 0);
+            $file_name = trim($_POST['file_name'] ?? '');
+            $file_path = trim($_POST['file_path'] ?? '');
+            $file_size = trim($_POST['file_size'] ?? '');
+            $file_format = trim($_POST['file_format'] ?? '');
+            $tags = trim($_POST['tags'] ?? '');
+
+            if ($title && $author) {
+                $current_time = get_current_time();
+                $stmt = $pdo->prepare("
+                    INSERT INTO books (title, author, description, category, publisher, page_count, file_name, file_path, file_size, file_format, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format, $current_time]);
+
+                $book_id = $pdo->lastInsertId();
+
+                if ($tags) {
+                    $tag_list = array_filter(array_map('trim', explode(',', $tags)));
+                    $current_time = get_current_time();
+                    foreach ($tag_list as $tag) {
+                        if ($tag) {
+                            $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
+                            $tag_stmt->execute([$book_id, $tag, $current_time]);
+                        }
+                    }
+                }
+
+                header('Location: ?action=books&message=' . urlencode('电子书添加成功'));
+                exit;
+            } else {
+                $error = '请填写必填字段（标题、作者）';
+            }
+        }
+        break;
+
+    case 'delete_book':
+        $book_id = intval($_GET['id'] ?? 0);
+        $confirm = $_GET['confirm'] ?? '';
+        if ($book_id && $confirm === 'yes') {
+            $stmt = $pdo->prepare("DELETE FROM books WHERE id = ?");
+            $stmt->execute([$book_id]);
+            header('Location: ?action=books&message=' . urlencode('电子书删除成功'));
+            exit;
+        } elseif ($book_id) {
+            $stmt = $pdo->prepare("SELECT id, title FROM books WHERE id = ?");
+            $stmt->execute([$book_id]);
+            $delete_book = $stmt->fetch(PDO::FETCH_ASSOC);
+        } else {
+            header('Location: ?action=books&error=' . urlencode('未指定电子书ID'));
+            exit;
+        }
+        break;
+
+    case 'batch_delete_books':
+        $book_ids = $_GET['ids'] ?? '';
+        $confirm = $_GET['confirm'] ?? '';
+        if ($book_ids && $confirm === 'yes') {
+            $ids = explode(',', $book_ids);
+            $ids = array_filter(array_map('intval', $ids));
+            if (!empty($ids)) {
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $stmt = $pdo->prepare("DELETE FROM books WHERE id IN ($placeholders)");
+                $stmt->execute($ids);
+                header('Location: ?action=books&message=' . urlencode('已成功删除 ' . count($ids) . ' 本电子书'));
+                exit;
+            }
+        }
+        header('Location: ?action=books');
+        exit;
+
+    case 'add_tag':
+        // 如果是POST请求，处理添加标签
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $tag_name = trim($_POST['tag_name'] ?? '');
+            $auto_search = isset($_POST['auto_search']) && $_POST['auto_search'] == '1';
+            $book_id = intval($_POST['book_id'] ?? 0);
+
+            if ($tag_name) {
+                $current_time = get_current_time();
+                $added_count = 0;
+
+                if ($auto_search) {
+                    // 自动搜索模式：查找标题或作者包含标签名称的书籍
+                    $search_term = '%' . $tag_name . '%';
+                    $stmt = $pdo->prepare("
+                        SELECT DISTINCT id 
+                        FROM books 
+                        WHERE (title LIKE ? OR author LIKE ?)
+                    ");
+                    $stmt->execute([$search_term, $search_term]);
+                    $matching_books = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+                    if (!empty($matching_books)) {
+                        // 为每个匹配的书籍添加标签（如果标签不存在）
+                        foreach ($matching_books as $bid) {
+                            // 检查该书籍是否已有此标签
+                            $check_stmt = $pdo->prepare("SELECT COUNT(*) FROM book_tags WHERE book_id = ? AND tag_name = ?");
+                            $check_stmt->execute([$bid, $tag_name]);
+                            $exists = $check_stmt->fetchColumn();
+
+                            if (!$exists) {
+                                $insert_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
+                                $insert_stmt->execute([$bid, $tag_name, $current_time]);
+                                $added_count++;
+                            }
+                        }
+                        
+                        if ($added_count > 0) {
+                            header('Location: ?action=tags&message=' . urlencode("标签添加成功！已为 {$added_count} 本匹配的书籍添加了标签"));
+                        } else {
+                            header('Location: ?action=tags&message=' . urlencode('未找到新的匹配书籍，所有匹配的书籍已包含此标签'));
+                        }
+                    } else {
+                        header('Location: ?action=tags&message=' . urlencode('未找到匹配的书籍'));
+                    }
+                    exit;
+                } else {
+                    // 手动模式：为指定图书添加标签
+                    if ($book_id) {
+                        // 检查该书籍是否已有此标签
+                        $check_stmt = $pdo->prepare("SELECT COUNT(*) FROM book_tags WHERE book_id = ? AND tag_name = ?");
+                        $check_stmt->execute([$book_id, $tag_name]);
+                        $exists = $check_stmt->fetchColumn();
+
+                        if (!$exists) {
+                            $stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
+                            $stmt->execute([$book_id, $tag_name, $current_time]);
+                            header('Location: ?action=tags&message=' . urlencode('标签添加成功'));
+                        } else {
+                            header('Location: ?action=tags&message=' . urlencode('该书籍已包含此标签'));
+                        }
+                        exit;
+                    } else {
+                        $error = '请启用自动搜索功能或输入图书ID';
+                    }
+                }
+            } else {
+                $error = '请输入标签名称';
+            }
+        }
+        break;
+
+    case 'delete_tag':
+        $tag_name = trim($_GET['tag'] ?? '');
+        $confirm = $_GET['confirm'] ?? '';
+        if ($tag_name && $confirm === 'yes') {
+            $stmt = $pdo->prepare("DELETE FROM book_tags WHERE tag_name = ?");
+            $stmt->execute([$tag_name]);
+            header('Location: ?action=tags&message=' . urlencode('标签删除成功'));
+            exit;
+        }
+        header('Location: ?action=tags');
+        exit;
+
+    case 'edit_tag':
+        $old_tag_name = trim($_GET['tag'] ?? '');
+        if (!$old_tag_name) {
+            header('Location: ?action=tags&error=' . urlencode('未指定标签名称'));
+            exit;
+        }
+        
+        // 如果是POST请求，处理编辑标签
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $new_tag_name = trim($_POST['new_tag_name'] ?? '');
+
+            if ($new_tag_name && $old_tag_name !== $new_tag_name) {
+                $check_stmt = $pdo->prepare("SELECT COUNT(*) FROM book_tags WHERE tag_name = ?");
+                $check_stmt->execute([$new_tag_name]);
+                $exists = $check_stmt->fetchColumn();
+
+                if ($exists > 0) {
+                    $update_stmt = $pdo->prepare("UPDATE book_tags SET tag_name = ? WHERE tag_name = ?");
+                    $update_stmt->execute([$new_tag_name, $old_tag_name]);
+
+                    $delete_dup_stmt = $pdo->prepare("
+                        DELETE t1 FROM book_tags t1
+                        INNER JOIN book_tags t2 
+                        WHERE t1.id > t2.id 
+                        AND t1.tag_name = t2.tag_name 
+                        AND t1.book_id = t2.book_id
+                    ");
+                    $delete_dup_stmt->execute();
+
+                    header('Location: ?action=tags&message=' . urlencode('标签已重命名并合并'));
+                    exit;
+                } else {
+                    $update_stmt = $pdo->prepare("UPDATE book_tags SET tag_name = ? WHERE tag_name = ?");
+                    $update_stmt->execute([$new_tag_name, $old_tag_name]);
+                    header('Location: ?action=tags&message=' . urlencode('标签重命名成功'));
+                    exit;
+                }
+            } else {
+                $error = '标签名称不能为空或相同';
+            }
+        }
+        break;
+
+    case 'merge_tags':
+        // 如果是POST请求，处理合并标签
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $source_tag = trim($_POST['source_tag'] ?? '');
+            $target_tag = trim($_POST['target_tag'] ?? '');
+
+            if ($source_tag && $target_tag && $source_tag !== $target_tag) {
+                $check_stmt = $pdo->prepare("SELECT COUNT(*) FROM book_tags WHERE tag_name = ?");
+                $check_stmt->execute([$target_tag]);
+                $target_exists = $check_stmt->fetchColumn();
+
+                if ($target_exists == 0) {
+                    $update_stmt = $pdo->prepare("UPDATE book_tags SET tag_name = ? WHERE tag_name = ?");
+                    $update_stmt->execute([$target_tag, $source_tag]);
+                    header('Location: ?action=tags&message=' . urlencode('标签合并成功（源标签已重命名为目标标签）'));
+                    exit;
+                } else {
+                    $current_time = get_current_time();
+                    $merge_stmt = $pdo->prepare("
+                        INSERT INTO book_tags (book_id, tag_name, created_at)
+                        SELECT DISTINCT bt1.book_id, ?, ?
+                        FROM book_tags bt1
+                        WHERE bt1.tag_name = ?
+                        AND NOT EXISTS (
+                            SELECT 1 FROM book_tags bt2 
+                            WHERE bt2.book_id = bt1.book_id 
+                            AND bt2.tag_name = ?
+                        )
+                    ");
+                    $merge_stmt->execute([$target_tag, $current_time, $source_tag, $target_tag]);
+
+                    $delete_stmt = $pdo->prepare("DELETE FROM book_tags WHERE tag_name = ?");
+                    $delete_stmt->execute([$source_tag]);
+
+                    header('Location: ?action=tags&message=' . urlencode('标签合并成功'));
+                    exit;
+                }
+            } else {
+                $error = '请选择要合并的标签，且源标签和目标标签不能相同';
+            }
+        }
+        break;
+
+    case 'view_tag_books':
+        $tag_name = trim($_GET['tag'] ?? '');
+        if ($tag_name) {
+            $stmt = $pdo->prepare("
+                SELECT DISTINCT b.id, b.title, b.author
+                FROM books b
+                INNER JOIN book_tags bt ON b.id = bt.book_id
+                WHERE bt.tag_name = ?
+                ORDER BY b.id
+            ");
+            $stmt->execute([$tag_name]);
+            $tag_books = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            header('Location: ?action=tags&error=' . urlencode('未指定标签名称'));
+            exit;
         }
         break;
 
@@ -307,309 +717,33 @@ switch ($action) {
         }
 }
 
-// 处理表单提交
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $post_action = $_POST['form_action'] ?? '';
+// 处理管理员设置POST提交
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'admin_settings') {
+    $admin_id = intval($_POST['admin_id'] ?? 0);
+    $username = trim($_POST['username'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
 
-    switch ($post_action) {
-        case 'add_user':
-            $username = trim($_POST['username'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $email = trim($_POST['email'] ?? '');
-            $role = $_POST['role'] ?? 'user';
-
-            if ($username && $password && $email) {
-                $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, role) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$username, $password_hash, $email, $role]);
-                $message = '用户添加成功';
-            } else {
-                $error = '请填写完整信息';
-            }
-            break;
-
-        case 'edit_user':
-            $user_id = intval($_POST['user_id'] ?? 0);
-            $username = trim($_POST['username'] ?? '');
-            $email = trim($_POST['email'] ?? '');
-            $role = $_POST['role'] ?? 'user';
-            $new_password = $_POST['password'] ?? '';
-
-            if ($user_id && $username && $email) {
-                if ($new_password) {
-                    // 如果提供了新密码，则更新密码
-                    $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ?, password_hash = ? WHERE id = ?");
-                    $stmt->execute([$username, $email, $role, $password_hash, $user_id]);
-                } else {
-                    // 否则只更新其他字段
-                    $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ? WHERE id = ?");
-                    $stmt->execute([$username, $email, $role, $user_id]);
-                }
-                $message = '用户信息更新成功';
-            } else {
-                $error = '请填写完整信息';
-            }
-            break;
-
-        case 'delete_user':
-            $user_id = intval($_POST['user_id'] ?? 0);
-            if ($user_id) {
-                $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
-                $stmt->execute([$user_id]);
-                $message = '用户删除成功';
-            }
-            break;
-
-        case 'batch_delete_users':
-            $user_ids = $_POST['user_ids'] ?? [];
-            if (!empty($user_ids) && is_array($user_ids)) {
-                $placeholders = implode(',', array_fill(0, count($user_ids), '?'));
-                $stmt = $pdo->prepare("DELETE FROM users WHERE id IN ($placeholders)");
-                $stmt->execute($user_ids);
-                $message = '已成功删除 ' . count($user_ids) . ' 个用户';
-            }
-            break;
-
-        case 'batch_delete_books':
-            $book_ids = $_POST['book_ids'] ?? [];
-            if (!empty($book_ids) && is_array($book_ids)) {
-                $placeholders = implode(',', array_fill(0, count($book_ids), '?'));
-                $stmt = $pdo->prepare("DELETE FROM books WHERE id IN ($placeholders)");
-                $stmt->execute($book_ids);
-                $message = '已成功删除 ' . count($book_ids) . ' 本电子书';
-            }
-            break;
-
-        case 'add_book':
-            $title = trim($_POST['title'] ?? '');
-            $author = trim($_POST['author'] ?? '');
-            $description = trim($_POST['description'] ?? '');
-            $category = trim($_POST['category'] ?? '');
-            $publisher = trim($_POST['publisher'] ?? '');
-            $page_count = intval($_POST['page_count'] ?? 0);
-            $file_name = trim($_POST['file_name'] ?? '');
-            $file_path = trim($_POST['file_path'] ?? '');
-            $file_size = trim($_POST['file_size'] ?? '');
-            $file_format = trim($_POST['file_format'] ?? '');
-            $tags = trim($_POST['tags'] ?? '');
-
-            if ($title && $author) {
-                $current_time = get_current_time();
-                $stmt = $pdo->prepare("
-                    INSERT INTO books (title, author, description, category, publisher, page_count, file_name, file_path, file_size, file_format, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format, $current_time]);
-
-                $book_id = $pdo->lastInsertId();
-
-                // 添加标签
-                if ($tags) {
-                    $tag_list = array_filter(array_map('trim', explode(',', $tags)));
-                    $current_time = get_current_time();
-                    foreach ($tag_list as $tag) {
-                        if ($tag) {
-                            $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
-                            $tag_stmt->execute([$book_id, $tag, $current_time]);
-                        }
-                    }
-                }
-
-                $message = '电子书添加成功';
-            } else {
-                $error = '请填写必填字段（标题、作者）';
-            }
-            break;
-
-        case 'edit_book':
-            $book_id = intval($_POST['book_id'] ?? 0);
-            $title = trim($_POST['title'] ?? '');
-            $author = trim($_POST['author'] ?? '');
-            $description = trim($_POST['description'] ?? '');
-            $category = trim($_POST['category'] ?? '');
-            $publisher = trim($_POST['publisher'] ?? '');
-            $page_count = intval($_POST['page_count'] ?? 0);
-            $file_name = trim($_POST['file_name'] ?? '');
-            $file_path = trim($_POST['file_path'] ?? '');
-            $file_size = trim($_POST['file_size'] ?? '');
-            $file_format = trim($_POST['file_format'] ?? '');
-            $tags = trim($_POST['tags'] ?? '');
-
-            if ($book_id && $title && $author) {
-                $current_time = get_current_time();
-                $stmt = $pdo->prepare("
-                    UPDATE books 
-                    SET title = ?, author = ?, description = ?, category = ?, publisher = ?, page_count = ?, 
-                        file_name = ?, file_path = ?, file_size = ?, file_format = ?, updated_at = ?
-                    WHERE id = ?
-                ");
-                $stmt->execute([$title, $author, $description, $category, $publisher, $page_count, $file_name, $file_path, $file_size, $file_format, $current_time, $book_id]);
-
-                // 删除原有标签
-                $stmt = $pdo->prepare("DELETE FROM book_tags WHERE book_id = ?");
-                $stmt->execute([$book_id]);
-
-                // 添加新标签
-                if ($tags) {
-                    $tag_list = array_filter(array_map('trim', explode(',', $tags)));
-                    $current_time = get_current_time();
-                    foreach ($tag_list as $tag) {
-                        if ($tag) {
-                            $tag_stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
-                            $tag_stmt->execute([$book_id, $tag, $current_time]);
-                        }
-                    }
-                }
-
-                $message = '电子书信息更新成功';
-                // 重定向到书籍列表页面
-                header('Location: ?action=books');
-                exit;
-            } else {
-                $error = '请填写必填字段（标题、作者）';
-            }
-            break;
-
-        case 'delete_book':
-            $book_id = intval($_POST['book_id'] ?? 0);
-            if ($book_id) {
-                $stmt = $pdo->prepare("DELETE FROM books WHERE id = ?");
-                $stmt->execute([$book_id]);
-                $message = '电子书删除成功';
-            }
-            break;
-
-        case 'add_tag':
-            $book_id = intval($_POST['book_id'] ?? 0);
-            $tag_name = trim($_POST['tag_name'] ?? '');
-
-            if ($book_id && $tag_name) {
-                $current_time = get_current_time();
-                $stmt = $pdo->prepare("INSERT INTO book_tags (book_id, tag_name, created_at) VALUES (?, ?, ?)");
-                $stmt->execute([$book_id, $tag_name, $current_time]);
-                $message = '标签添加成功';
-            } else {
-                $error = '请选择图书并输入标签名称';
-            }
-            break;
-
-        case 'delete_tag':
-            $tag_name = trim($_POST['tag_name'] ?? '');
-            if ($tag_name) {
-                // 删除该标签的所有关联
-                $stmt = $pdo->prepare("DELETE FROM book_tags WHERE tag_name = ?");
-                $stmt->execute([$tag_name]);
-                $message = '标签删除成功';
-            }
-            break;
-
-        case 'edit_tag':
-            $old_tag_name = trim($_POST['old_tag_name'] ?? '');
-            $new_tag_name = trim($_POST['new_tag_name'] ?? '');
-
-            if ($old_tag_name && $new_tag_name && $old_tag_name !== $new_tag_name) {
-                // 检查新标签名是否已存在
-                $check_stmt = $pdo->prepare("SELECT COUNT(*) FROM book_tags WHERE tag_name = ?");
-                $check_stmt->execute([$new_tag_name]);
-                $exists = $check_stmt->fetchColumn();
-
-                if ($exists > 0) {
-                    // 如果新标签已存在，则合并：先更新为新标签名，然后删除重复项
-                    $update_stmt = $pdo->prepare("UPDATE book_tags SET tag_name = ? WHERE tag_name = ?");
-                    $update_stmt->execute([$new_tag_name, $old_tag_name]);
-
-                    // 删除重复的标签关联（同一个book_id不应该有重复的tag_name）
-                    $delete_dup_stmt = $pdo->prepare("
-                        DELETE t1 FROM book_tags t1
-                        INNER JOIN book_tags t2 
-                        WHERE t1.id > t2.id 
-                        AND t1.tag_name = t2.tag_name 
-                        AND t1.book_id = t2.book_id
-                    ");
-                    $delete_dup_stmt->execute();
-
-                    $message = '标签已重命名并合并';
-                } else {
-                    // 直接重命名标签
-                    $update_stmt = $pdo->prepare("UPDATE book_tags SET tag_name = ? WHERE tag_name = ?");
-                    $update_stmt->execute([$new_tag_name, $old_tag_name]);
-                    $message = '标签重命名成功';
-                }
-            } else {
-                $error = '标签名称不能为空或相同';
-            }
-            break;
-
-        case 'merge_tags':
-            $source_tag = trim($_POST['source_tag'] ?? '');
-            $target_tag = trim($_POST['target_tag'] ?? '');
-
-            if ($source_tag && $target_tag && $source_tag !== $target_tag) {
-                // 检查目标标签是否存在
-                $check_stmt = $pdo->prepare("SELECT COUNT(*) FROM book_tags WHERE tag_name = ?");
-                $check_stmt->execute([$target_tag]);
-                $target_exists = $check_stmt->fetchColumn();
-
-                if ($target_exists == 0) {
-                    // 如果目标标签不存在，先创建它（通过更新源标签）
-                    $update_stmt = $pdo->prepare("UPDATE book_tags SET tag_name = ? WHERE tag_name = ?");
-                    $update_stmt->execute([$target_tag, $source_tag]);
-                    $message = '标签合并成功（源标签已重命名为目标标签）';
-                } else {
-                    // 合并标签：将源标签的所有书籍关联到目标标签
-                    // 先找出源标签的书籍ID（排除已存在于目标标签的书籍）
-                    // 获取当前时间
-                    $current_time = get_current_time();
-                    $merge_stmt = $pdo->prepare("
-                        INSERT INTO book_tags (book_id, tag_name, created_at)
-                        SELECT DISTINCT bt1.book_id, ?, ?
-                        FROM book_tags bt1
-                        WHERE bt1.tag_name = ?
-                        AND NOT EXISTS (
-                            SELECT 1 FROM book_tags bt2 
-                            WHERE bt2.book_id = bt1.book_id 
-                            AND bt2.tag_name = ?
-                        )
-                    ");
-                    $merge_stmt->execute([$target_tag, $current_time, $source_tag, $target_tag]);
-
-                    // 删除源标签的所有关联
-                    $delete_stmt = $pdo->prepare("DELETE FROM book_tags WHERE tag_name = ?");
-                    $delete_stmt->execute([$source_tag]);
-
-                    $message = '标签合并成功';
-                }
-            } else {
-                $error = '请选择要合并的标签，且源标签和目标标签不能相同';
-            }
-            break;
-
-        case 'update_admin':
-            $admin_id = intval($_POST['admin_id'] ?? 0);
-            $username = trim($_POST['username'] ?? '');
-            $email = trim($_POST['email'] ?? '');
-            $password = $_POST['password'] ?? '';
-
-            if ($admin_id && $username && $email) {
-                if ($password) {
-                    // 如果提供了新密码，则更新密码
-                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, password_hash = ? WHERE id = ?");
-                    $stmt->execute([$username, $email, $password_hash, $admin_id]);
-                } else {
-                    // 否则只更新用户名和邮箱
-                    $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
-                    $stmt->execute([$username, $email, $admin_id]);
-                }
-                $message = '管理员信息更新成功';
-                $_SESSION['admin_username'] = $username;
-            } else {
-                $error = '请填写用户名和邮箱';
-            }
-            break;
+    if ($admin_id && $username && $email) {
+        if ($password) {
+            $password_hash = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, password_hash = ? WHERE id = ?");
+            $stmt->execute([$username, $email, $password_hash, $admin_id]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
+            $stmt->execute([$username, $email, $admin_id]);
+        }
+        $_SESSION['admin_username'] = $username;
+        header('Location: ?action=admin_settings&message=' . urlencode('管理员信息更新成功'));
+        exit;
+    } else {
+        $error = '请填写用户名和邮箱';
     }
 }
+
+// 从URL参数获取消息
+$message = $_GET['message'] ?? null;
+$error = $_GET['error'] ?? null;
 
 // 使用 common.php 中的函数
 // build_admin_page_url 已在 common.php 中定义
@@ -930,7 +1064,7 @@ function build_page_url($action, $new_page)
                 <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                         <h2 class="text-2xl font-bold text-gray-800">用户管理</h2>
-                        <a href="#" data-modal="addUserModal" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
+                        <a href="?action=add_user" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
                         <i class="fas fa-plus mr-2"></i> 添加用户
                     </a>
                 </div>
@@ -1003,23 +1137,17 @@ function build_page_url($action, $new_page)
                                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell"><?php echo $user['created_at']; ?></td>
                                             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
                                                 <div class="flex items-center gap-2">
-                                                    <a href="#" 
-                                                        data-action="edit-user"
-                                                        data-user-id="<?php echo $user['id']; ?>"
-                                                        data-username="<?php echo htmlspecialchars($user['username'], ENT_QUOTES); ?>"
-                                                        data-email="<?php echo htmlspecialchars($user['email'], ENT_QUOTES); ?>"
-                                                        data-role="<?php echo htmlspecialchars($user['role'], ENT_QUOTES); ?>"
+                                                    <a href="?action=edit_user&id=<?php echo $user['id']; ?>" 
                                                         class="text-green-600 hover:text-green-900 p-1 inline-flex items-center justify-center cursor-pointer rounded hover:bg-green-50 transition-colors"
                                                         title="编辑用户">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
-                                        <form method="POST" class="inline" onsubmit="return confirm('确定要删除此用户吗？')">
-                                            <input type="hidden" name="form_action" value="delete_user">
-                                            <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
-                                                        <button type="submit" class="text-red-600 hover:text-red-900 p-1">
-                                                            <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
+                                                    <a href="?action=delete_user&id=<?php echo $user['id']; ?>" 
+                                                        class="text-red-600 hover:text-red-900 p-1 inline-flex items-center justify-center cursor-pointer rounded hover:bg-red-50 transition-colors"
+                                                        title="删除用户"
+                                                        onclick="return confirm('确定要删除此用户吗？');">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
                                                 </div>
                                     </td>
                                 </tr>
@@ -1059,6 +1187,110 @@ function build_page_url($action, $new_page)
                 <?php endif; ?>
             </div>
 
+        <?php elseif ($action === 'add_user' && $_SERVER['REQUEST_METHOD'] !== 'POST'): ?>
+            <!-- 添加用户页面 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800">添加用户</h2>
+                    <a href="?action=users" class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
+                        <i class="fas fa-arrow-left mr-2"></i> 返回列表
+                    </a>
+                </div>
+                <form method="POST" action="?action=add_user" class="max-w-md">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名 <span class="text-red-500">*</span></label>
+                            <input type="text" name="username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱 <span class="text-red-500">*</span></label>
+                            <input type="email" name="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">密码 <span class="text-red-500">*</span></label>
+                            <input type="password" name="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
+                            <select name="role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="user">普通用户</option>
+                                <option value="admin">管理员</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-6">
+                        <a href="?action=users" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</a>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">添加</button>
+                    </div>
+                </form>
+            </div>
+
+        <?php elseif ($action === 'edit_user' && isset($edit_user) && $_SERVER['REQUEST_METHOD'] !== 'POST'): ?>
+            <!-- 编辑用户页面 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800">编辑用户</h2>
+                    <a href="?action=users" class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
+                        <i class="fas fa-arrow-left mr-2"></i> 返回列表
+                    </a>
+                </div>
+                <form method="POST" action="?action=edit_user&id=<?php echo $edit_user['id']; ?>" class="max-w-md">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名 <span class="text-red-500">*</span></label>
+                            <input type="text" name="username" value="<?php echo htmlspecialchars($edit_user['username']); ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱 <span class="text-red-500">*</span></label>
+                            <input type="email" name="email" value="<?php echo htmlspecialchars($edit_user['email']); ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">密码（留空则不修改）</label>
+                            <input type="password" name="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
+                            <select name="role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="user" <?php echo $edit_user['role'] === 'user' ? 'selected' : ''; ?>>普通用户</option>
+                                <option value="admin" <?php echo $edit_user['role'] === 'admin' ? 'selected' : ''; ?>>管理员</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-6">
+                        <a href="?action=users" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</a>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">更新</button>
+                    </div>
+                </form>
+            </div>
+
+        <?php elseif ($action === 'delete_user' && isset($delete_user) && !isset($_GET['confirm'])): ?>
+            <!-- 删除用户确认页面 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6 max-w-md mx-auto">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">确认删除用户</h2>
+                <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 rounded mb-4">
+                    <p class="font-semibold">警告：此操作不可恢复！</p>
+                    <p class="text-sm mt-1">确定要删除用户 "<?php echo htmlspecialchars($delete_user['username']); ?>" 吗？</p>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <a href="?action=users" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</a>
+                    <a href="?action=delete_user&id=<?php echo $delete_user['id']; ?>&confirm=yes" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">确认删除</a>
+                </div>
+            </div>
+
+        <?php elseif ($action === 'delete_book' && isset($delete_book) && !isset($_GET['confirm'])): ?>
+            <!-- 删除电子书确认页面 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6 max-w-md mx-auto">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">确认删除电子书</h2>
+                <div class="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 rounded mb-4">
+                    <p class="font-semibold">警告：此操作不可恢复！</p>
+                    <p class="text-sm mt-1">确定要删除电子书 "<?php echo htmlspecialchars($delete_book['title']); ?>" 吗？</p>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <a href="?action=books" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</a>
+                    <a href="?action=delete_book&id=<?php echo $delete_book['id']; ?>&confirm=yes" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">确认删除</a>
+                </div>
+            </div>
+
         <?php elseif ($action === 'edit_book' && isset($book)): ?>
             <!-- 编辑电子书页面 -->
             <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
@@ -1069,9 +1301,7 @@ function build_page_url($action, $new_page)
                     </a>
                 </div>
 
-                <form method="POST" class="max-w-3xl">
-                    <input type="hidden" name="form_action" value="edit_book">
-                    <input type="hidden" name="book_id" value="<?php echo $book['id']; ?>">
+                <form method="POST" class="max-w-3xl" action="?action=edit_book&id=<?php echo $book['id']; ?>">
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
@@ -1144,7 +1374,7 @@ function build_page_url($action, $new_page)
                 </form>
             </div>
 
-        <?php elseif ($action === 'add_book_form'): ?>
+        <?php elseif ($action === 'add_book' && $_SERVER['REQUEST_METHOD'] !== 'POST'): ?>
             <!-- 添加电子书页面 -->
             <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -1154,8 +1384,7 @@ function build_page_url($action, $new_page)
                     </a>
                 </div>
 
-                <form method="POST" class="max-w-3xl">
-                    <input type="hidden" name="form_action" value="add_book">
+                <form method="POST" class="max-w-3xl" action="?action=add_book">
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
@@ -1233,7 +1462,7 @@ function build_page_url($action, $new_page)
                 <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                         <h2 class="text-2xl font-bold text-gray-800">书籍管理</h2>
-                        <a href="?action=add_book_form" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
+                        <a href="?action=add_book" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
                         <i class="fas fa-plus mr-2"></i> 添加电子书
                     </a>
                 </div>
@@ -1324,13 +1553,12 @@ function build_page_url($action, $new_page)
                                                         class="text-green-600 hover:text-green-900 p-1" title="编辑">
                                                         <i class="fas fa-edit"></i>
                                         </a>
-                                        <form method="POST" class="inline" onsubmit="return confirm('确定要删除此电子书吗？')">
-                                            <input type="hidden" name="form_action" value="delete_book">
-                                            <input type="hidden" name="book_id" value="<?php echo $book['id']; ?>">
-                                                        <button type="submit" class="text-red-600 hover:text-red-900 p-1" title="删除">
-                                                            <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
+                                                    <a href="?action=delete_book&id=<?php echo $book['id']; ?>" 
+                                                        class="text-red-600 hover:text-red-900 p-1 inline-flex items-center justify-center cursor-pointer rounded hover:bg-red-50 transition-colors"
+                                                        title="删除"
+                                                        onclick="return confirm('确定要删除此电子书吗？');">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
                                                 </div>
                                     </td>
                                 </tr>
@@ -1557,130 +1785,139 @@ function build_page_url($action, $new_page)
 
         <?php elseif ($action === 'tags'): ?>
             <!-- 标签管理 -->
-                <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div>
                         <h2 class="text-2xl font-bold text-gray-800">标签管理</h2>
-                        <div class="flex items-center gap-2">
-                            <a href="#" data-modal="mergeTagModal" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center">
+                        <p class="text-sm text-gray-500 mt-1">管理和组织书籍标签</p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <a href="?action=add_tag" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                            <i class="fas fa-plus mr-2"></i> 添加标签
+                        </a>
+                        <a href="?action=merge_tags" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center">
                             <i class="fas fa-compress mr-2"></i> 合并标签
                         </a>
                     </div>
                 </div>
 
-                <!-- 搜索框 -->
+                <!-- 搜索框和统计信息 -->
                 <div class="mb-6">
-                        <form method="GET" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <form method="GET" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-4">
                         <input type="hidden" name="action" value="tags">
                         <input type="text"
                             name="search"
                             value="<?php echo htmlspecialchars($tag_search ?? ''); ?>"
                             placeholder="搜索标签名称..."
-                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center">
                             <i class="fas fa-search mr-2"></i> 搜索
                         </button>
                         <?php if (!empty($tag_search)): ?>
-                                <a href="?action=tags" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors flex items-center justify-center">
+                            <a href="?action=tags" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors flex items-center justify-center">
                                 <i class="fas fa-times mr-2"></i> 清除
                             </a>
                         <?php endif; ?>
                     </form>
-                </div>
-
-                <!-- 统计信息 -->
-                <div class="mb-4 text-gray-600">
-                    共找到 <strong><?php echo $total_tags ?? 0; ?></strong> 个标签
-                    <?php if (!empty($tag_search)): ?>
-                        （搜索：<strong><?php echo htmlspecialchars($tag_search); ?></strong>）
-                    <?php endif; ?>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>标签名称</th>
-                                <th>使用次数</th>
-                                <th>关联书籍预览</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($tags)): ?>
-                                <tr>
-                                    <td colspan="4" class="text-center py-8 text-gray-500">
-                                        <?php if (!empty($tag_search)): ?>
-                                            未找到匹配的标签
-                                        <?php else: ?>
-                                            暂无标签
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($tags as $tag): ?>
-                                    <tr>
-                                        <td>
-                                            <span class="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
-                                                <?php echo htmlspecialchars($tag['tag_name']); ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="font-semibold text-gray-700"><?php echo $tag['usage_count']; ?></span>
-                                            <span class="text-gray-500 text-sm">本</span>
-                                        </td>
-                                        <td class="max-w-md">
-                                            <?php
-                                            $book_titles = explode(' | ', $tag['book_titles'] ?? '');
-                                            $preview_count = 3;
-                                            $preview_titles = array_slice($book_titles, 0, $preview_count);
-                                            ?>
-                                            <div class="text-sm text-gray-600">
-                                                <?php if (!empty($preview_titles)): ?>
-                                                    <?php foreach ($preview_titles as $title): ?>
-                                                        <span class="inline-block mr-2 mb-1">
-                                                            <?php echo htmlspecialchars(mb_substr($title, 0, 20)) . (mb_strlen($title) > 20 ? '...' : ''); ?>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                    <?php if (count($book_titles) > $preview_count): ?>
-                                                        <span class="text-gray-400">等 <?php echo count($book_titles) - $preview_count; ?> 本...</span>
-                                                    <?php endif; ?>
-                                                <?php else: ?>
-                                                    <span class="text-gray-400">暂无关联书籍</span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="flex items-center gap-2">
-                                                <a href="#" 
-                                                    data-action="edit-tag"
-                                                    data-tag-name="<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>"
-                                                    class="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-50 transition-colors"
-                                                    title="编辑标签">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                <a href="#" 
-                                                    data-action="show-tag-books"
-                                                    data-tag-name="<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>"
-                                                    data-book-ids="<?php echo htmlspecialchars($tag['book_ids'], ENT_QUOTES); ?>"
-                                                    class="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors"
-                                                    title="查看关联书籍">
-                                                    <i class="fas fa-book"></i>
-                                                </a>
-                                                <form method="POST" class="inline" onsubmit="return confirm('确定要删除标签 \" <?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>\" 吗？\n\n这将删除该标签与所有书籍的关联关系！')">
-                                                    <input type="hidden" name="form_action" value="delete_tag">
-                                                    <input type="hidden" name="tag_name" value="<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>">
-                                                    <button type="submit" class="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors" title="删除标签">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
+                    
+                    <div class="flex items-center justify-between text-sm text-gray-600">
+                        <span>
+                            共找到 <strong class="text-gray-800"><?php echo $total_tags ?? 0; ?></strong> 个标签
+                            <?php if (!empty($tag_search)): ?>
+                                （搜索：<strong><?php echo htmlspecialchars($tag_search); ?></strong>）
                             <?php endif; ?>
-                        </tbody>
-                    </table>
+                        </span>
+                    </div>
                 </div>
+
+                <!-- 标签卡片网格 -->
+                <?php if (empty($tags)): ?>
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-tags text-4xl mb-4 text-gray-300"></i>
+                        <p class="text-lg">
+                            <?php if (!empty($tag_search)): ?>
+                                未找到匹配的标签
+                            <?php else: ?>
+                                暂无标签
+                            <?php endif; ?>
+                        </p>
+                        <?php if (empty($tag_search)): ?>
+                            <a href="?action=add_tag" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-plus mr-2"></i> 添加第一个标签
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <?php foreach ($tags as $tag): ?>
+                            <?php
+                            $book_titles = explode(' | ', $tag['book_titles'] ?? '');
+                            $preview_count = 2;
+                            $preview_titles = array_slice($book_titles, 0, $preview_count);
+                            ?>
+                            <div class="border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-shadow bg-white">
+                                <!-- 标签头部 -->
+                                <div class="flex items-start justify-between mb-3">
+                                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm">
+                                        <i class="fas fa-tag mr-1.5"></i>
+                                        <?php echo htmlspecialchars($tag['tag_name']); ?>
+                                    </span>
+                                    <div class="flex items-center gap-1">
+                                        <a href="?action=edit_tag&tag=<?php echo urlencode($tag['tag_name']); ?>" 
+                                            class="text-green-600 hover:text-green-700 p-1.5 rounded hover:bg-green-50 transition-colors"
+                                            title="编辑标签">
+                                            <i class="fas fa-edit text-sm"></i>
+                                        </a>
+                                        <a href="?action=delete_tag&tag=<?php echo urlencode($tag['tag_name']); ?>" 
+                                            class="text-red-600 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition-colors" 
+                                            title="删除标签"
+                                            onclick="return confirm('确定要删除标签 \"<?php echo htmlspecialchars($tag['tag_name'], ENT_QUOTES); ?>\" 吗？\\n\\n这将删除该标签与所有书籍的关联关系！');">
+                                            <i class="fas fa-trash text-sm"></i>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- 使用次数 -->
+                                <div class="mb-3 flex items-center text-sm text-gray-600">
+                                    <i class="fas fa-book text-blue-500 mr-2"></i>
+                                    <span class="font-semibold text-gray-800"><?php echo $tag['usage_count']; ?></span>
+                                    <span class="ml-1">本关联书籍</span>
+                                </div>
+
+                                <!-- 关联书籍预览 -->
+                                <div class="mb-4">
+                                    <?php if (!empty($preview_titles)): ?>
+                                        <div class="space-y-1.5">
+                                            <?php foreach ($preview_titles as $title): ?>
+                                                <div class="text-sm text-gray-600 truncate">
+                                                    <i class="fas fa-circle text-blue-400 text-xs mr-2"></i>
+                                                    <?php echo htmlspecialchars(mb_substr($title, 0, 25)) . (mb_strlen($title) > 25 ? '...' : ''); ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                            <?php if (count($book_titles) > $preview_count): ?>
+                                                <div class="text-xs text-gray-400 pt-1">
+                                                    还有 <?php echo count($book_titles) - $preview_count; ?> 本...
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="text-sm text-gray-400 italic">
+                                            <i class="fas fa-inbox mr-1"></i> 暂无关联书籍
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- 操作按钮 -->
+                                <div class="pt-3 border-t border-gray-100">
+                                    <a href="?action=view_tag_books&tag=<?php echo urlencode($tag['tag_name']); ?>" 
+                                        class="w-full block text-center px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
+                                        <i class="fas fa-list mr-1"></i> 查看全部书籍
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
 
                 <!-- 分页 -->
                 <?php if ($total_pages > 1): ?>
@@ -1704,13 +1941,183 @@ function build_page_url($action, $new_page)
                 <?php endif; ?>
             </div>
 
+        <?php elseif ($action === 'add_tag' && $_SERVER['REQUEST_METHOD'] !== 'POST'): ?>
+            <!-- 添加标签页面 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">添加标签</h2>
+                        <p class="text-sm text-gray-500 mt-1">为书籍添加新标签</p>
+                    </div>
+                    <a href="?action=tags" class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
+                        <i class="fas fa-arrow-left mr-2"></i> 返回列表
+                    </a>
+                </div>
+                <form method="POST" action="?action=add_tag" class="max-w-2xl" id="addTagForm">
+                    <div class="space-y-5 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">标签名称 <span class="text-red-500">*</span></label>
+                            <input type="text" name="tag_name" id="tag_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="输入标签名称，如：科幻、历史、文学等" required>
+                            <p class="text-xs text-gray-500 mt-1">标签名称将用于分类和搜索书籍</p>
+                        </div>
+
+                        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" name="auto_search" id="auto_search" value="1" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <span class="ml-2 text-sm font-medium text-gray-700">启用自动搜索添加功能</span>
+                            </label>
+                            <p class="text-xs text-gray-500 mt-2 ml-6">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                勾选后，系统将自动搜索书籍表中标题或作者包含此标签名称的书籍，并全部加入此标签
+                            </p>
+                        </div>
+
+                        <div id="book_id_field">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">图书ID</label>
+                            <input type="number" name="book_id" id="book_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="如果不使用自动搜索，请输入图书ID">
+                            <p class="text-xs text-gray-500 mt-1">手动指定要添加标签的图书ID（仅在未启用自动搜索时使用）</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded mb-6">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-lightbulb text-blue-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-blue-700">
+                                    <strong>提示：</strong>启用自动搜索功能后，系统会在书籍的标题和作者字段中搜索包含标签名称的内容。例如，标签"科幻"会匹配所有标题或作者中包含"科幻"二字的书籍。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <a href="?action=tags" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</a>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-plus mr-2"></i> 添加标签
+                        </button>
+                    </div>
+                </form>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const autoSearchCheckbox = document.getElementById('auto_search');
+                        const bookIdField = document.getElementById('book_id_field');
+                        const bookIdInput = document.getElementById('book_id');
+                        const tagNameInput = document.getElementById('tag_name');
+                        const form = document.getElementById('addTagForm');
+
+                        // 切换自动搜索功能时显示/隐藏图书ID字段
+                        autoSearchCheckbox.addEventListener('change', function() {
+                            if (this.checked) {
+                                bookIdField.style.display = 'none';
+                                bookIdInput.removeAttribute('required');
+                                bookIdInput.value = '';
+                            } else {
+                                bookIdField.style.display = 'block';
+                                bookIdInput.setAttribute('required', 'required');
+                            }
+                        });
+
+                        // 表单提交前的验证
+                        form.addEventListener('submit', function(e) {
+                            if (!autoSearchCheckbox.checked && !bookIdInput.value.trim()) {
+                                e.preventDefault();
+                                alert("请启用自动搜索功能或输入图书ID");
+                                return false;
+                            }
+                        });
+                    });
+                </script>
+            </div>
+
+        <?php elseif ($action === 'edit_tag' && isset($old_tag_name) && $_SERVER['REQUEST_METHOD'] !== 'POST'): ?>
+            <!-- 编辑标签页面 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800">编辑标签</h2>
+                    <a href="?action=tags" class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
+                        <i class="fas fa-arrow-left mr-2"></i> 返回列表
+                    </a>
+                </div>
+                <form method="POST" action="?action=edit_tag&tag=<?php echo urlencode($old_tag_name); ?>" class="max-w-md">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">新标签名称 <span class="text-red-500">*</span></label>
+                        <input type="text" name="new_tag_name" value="<?php echo htmlspecialchars($old_tag_name); ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <p class="text-xs text-gray-500 mt-1">如果新标签名已存在，系统会自动合并</p>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <a href="?action=tags" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</a>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">保存</button>
+                    </div>
+                </form>
+            </div>
+
+        <?php elseif ($action === 'merge_tags' && $_SERVER['REQUEST_METHOD'] !== 'POST'): ?>
+            <!-- 合并标签页面 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800">合并标签</h2>
+                    <a href="?action=tags" class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
+                        <i class="fas fa-arrow-left mr-2"></i> 返回列表
+                    </a>
+                </div>
+                <form method="POST" action="?action=merge_tags" class="max-w-md">
+                    <div class="space-y-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">源标签（将被合并的标签） <span class="text-red-500">*</span></label>
+                            <input type="text" name="source_tag" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="输入要合并的标签名称" required>
+                            <p class="text-xs text-gray-500 mt-1">该标签将被删除，其所有关联将转移到目标标签</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">目标标签（合并到的标签） <span class="text-red-500">*</span></label>
+                            <input type="text" name="target_tag" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="输入目标标签名称" required>
+                            <p class="text-xs text-gray-500 mt-1">源标签的所有关联将转移到此标签</p>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-4 rounded mb-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <span class="font-semibold">警告：</span>
+                        </div>
+                        <p class="text-sm mt-1">此操作不可逆，请确认源标签和目标标签名称正确！</p>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <a href="?action=tags" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">取消</a>
+                        <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">确认合并</button>
+                    </div>
+                </form>
+            </div>
+
+        <?php elseif ($action === 'view_tag_books' && isset($tag_books) && isset($tag_name)): ?>
+            <!-- 查看标签关联书籍页面 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800">标签 "<?php echo htmlspecialchars($tag_name); ?>" 关联的书籍</h2>
+                    <a href="?action=tags" class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
+                        <i class="fas fa-arrow-left mr-2"></i> 返回列表
+                    </a>
+                </div>
+                <div class="border rounded-lg overflow-hidden">
+                    <?php if (empty($tag_books)): ?>
+                        <div class="px-4 py-8 text-center text-gray-500">暂无关联书籍</div>
+                    <?php else: ?>
+                        <?php foreach ($tag_books as $book): ?>
+                            <a href="?action=edit_book&id=<?php echo $book['id']; ?>" target="_blank" class="block py-2 px-4 hover:bg-gray-100 border-b transition-colors">
+                                <?php echo htmlspecialchars($book['title']); ?> - <?php echo htmlspecialchars($book['author']); ?>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+
         <?php elseif ($action === 'admin_settings'): ?>
             <!-- 管理员设置 -->
                 <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">管理员设置</h2>
 
-                <form method="POST" class="max-w-md">
-                    <input type="hidden" name="form_action" value="update_admin">
+                <form method="POST" class="max-w-md" action="?action=admin_settings">
                     <input type="hidden" name="admin_id" value="<?php echo $admin_user['id']; ?>">
 
                         <div class="space-y-4 mb-6">
@@ -1740,212 +2147,6 @@ function build_page_url($action, $new_page)
     </div>
     </main>
 
-    <!-- 编辑标签模态框 -->
-    <div id="editTagModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <a href="#" data-modal="editTagModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
-            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">编辑标签</h3>
-                    <a href="#" data-modal="editTagModal" data-close="true" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times"></i>
-                </a>
-            </div>
-            <form method="POST">
-                <input type="hidden" name="form_action" value="edit_tag">
-                <input type="hidden" name="old_tag_name" id="editOldTagName">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">新标签名称</label>
-                        <input type="text" name="new_tag_name" id="editNewTagName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                        <p class="text-xs text-gray-500 mt-1">如果新标签名已存在，系统会自动合并</p>
-                </div>
-                    <div class="flex justify-end gap-2">
-                        <a href="#" data-modal="editTagModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- 合并标签模态框 -->
-    <div id="mergeTagModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <a href="#" data-modal="mergeTagModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
-            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">合并标签</h3>
-                    <a href="#" data-modal="mergeTagModal" data-close="true" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times"></i>
-                </a>
-            </div>
-                <form method="POST" id="mergeTagForm">
-                <input type="hidden" name="form_action" value="merge_tags">
-                    <div class="space-y-4 mb-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">源标签（将被合并的标签）</label>
-                            <input type="text" name="source_tag" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="输入要合并的标签名称" required>
-                            <p class="text-xs text-gray-500 mt-1">该标签将被删除，其所有关联将转移到目标标签</p>
-                </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">目标标签（合并到的标签）</label>
-                            <input type="text" name="target_tag" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="输入目标标签名称" required>
-                            <p class="text-xs text-gray-500 mt-1">源标签的所有关联将转移到此标签</p>
-                </div>
-                    </div>
-                    <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-4 rounded mb-4">
-                        <div class="flex items-center">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                            <span class="font-semibold">警告：</span>
-                </div>
-                        <p class="text-sm mt-1">此操作不可逆，请确认源标签和目标标签名称正确！</p>
-                    </div>
-                    <div class="flex justify-end gap-2">
-                        <a href="#" data-modal="mergeTagModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
-                        <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">确认合并</button>
-                </div>
-            </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- 查看标签关联书籍模态框 -->
-    <div id="tagBooksModal" class="admin-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); z-index:1000;">
-        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; width:90%; max-width:600px; max-height:80vh; overflow-y:auto;">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold" id="tagBooksTitle">标签关联的书籍</h3>
-                <a href="#" data-modal="tagBooksModal" data-close="true" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </a>
-            </div>
-            <div id="tagBooksList" class="border rounded-lg overflow-hidden">
-                <!-- 书籍列表将在这里动态加载 -->
-            </div>
-            <div class="flex justify-end mt-4">
-                <a href="#" data-modal="tagBooksModal" data-close="true" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-block">关闭</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- 添加用户模态框 -->
-    <div id="addUserModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <a href="#" data-modal="addUserModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
-            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">添加用户</h3>
-                    <a href="#" data-modal="addUserModal" data-close="true" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times"></i>
-                    </a>
-                </div>
-            <form method="POST">
-                <input type="hidden" name="form_action" value="add_user">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
-                            <input type="text" name="username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
-                            <input type="email" name="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
-                            <input type="password" name="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
-                            <select name="role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="user">普通用户</option>
-                        <option value="admin">管理员</option>
-                    </select>
-                </div>
-                    </div>
-                    <div class="flex justify-end gap-2 mt-6">
-                        <a href="#" data-modal="addUserModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">添加</button>
-                </div>
-            </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- 编辑用户模态框 -->
-    <div id="editUserModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <a href="#" data-modal="editUserModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
-            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">编辑用户</h3>
-                    <a href="#" data-modal="editUserModal" data-close="true" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times"></i>
-                    </a>
-                </div>
-            <form method="POST">
-                <input type="hidden" name="form_action" value="edit_user">
-                <input type="hidden" name="user_id" id="edit_user_id">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
-                            <input type="text" name="username" id="edit_username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
-                            <input type="email" name="email" id="edit_email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">密码（留空则不修改）</label>
-                            <input type="password" name="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
-                            <select name="role" id="edit_role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="user">普通用户</option>
-                        <option value="admin">管理员</option>
-                    </select>
-                </div>
-                    </div>
-                    <div class="flex justify-end gap-2 mt-6">
-                        <a href="#" data-modal="editUserModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">更新</button>
-                </div>
-            </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- 添加标签模态框 -->
-    <!-- 添加标签模态框 -->
-    <div id="addTagModal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-overlay">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <a href="#" data-modal="addTagModal" data-close="true" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay"></a>
-            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">添加标签</h3>
-                    <a href="#" data-modal="addTagModal" data-close="true" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times"></i>
-                    </a>
-                </div>
-            <form method="POST">
-                <input type="hidden" name="form_action" value="add_tag">
-                    <div class="space-y-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">图书ID</label>
-                            <input type="number" name="book_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">标签名称</label>
-                            <input type="text" name="tag_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                </div>
-                    </div>
-                    <div class="flex justify-end gap-2">
-                        <a href="#" data-modal="addTagModal" data-close="true" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors inline-block">取消</a>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">添加</button>
-                </div>
-            </form>
-            </div>
-        </div>
-    </div>
-
     <script>
         // 侧边栏切换
         function toggleSidebar() {
@@ -1953,23 +2154,6 @@ function build_page_url($action, $new_page)
             const overlay = document.getElementById('overlay');
             sidebar.classList.toggle('-translate-x-full');
             overlay.classList.toggle('hidden');
-        }
-
-        // 模态框控制
-        function openModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
-            }
-        }
-
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.add('hidden');
-                document.body.style.overflow = 'auto';
-            }
         }
 
         // 批量操作相关
@@ -2005,18 +2189,8 @@ function build_page_url($action, $new_page)
             if (!confirm(`确定要删除选中的 ${checkboxes.length} 个用户吗？此操作不可恢复！`)) {
                 return;
             }
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.innerHTML = '<input type="hidden" name="form_action" value="batch_delete_users">';
-            checkboxes.forEach(cb => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'user_ids[]';
-                input.value = cb.value;
-                form.appendChild(input);
-            });
-            document.body.appendChild(form);
-            form.submit();
+            const ids = Array.from(checkboxes).map(cb => cb.value).join(',');
+            window.location.href = '?action=batch_delete_users&ids=' + ids + '&confirm=yes';
         }
 
         function batchDeleteBooks() {
@@ -2028,115 +2202,19 @@ function build_page_url($action, $new_page)
             if (!confirm(`确定要删除选中的 ${checkboxes.length} 本电子书吗？此操作不可恢复！`)) {
                 return;
             }
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.innerHTML = '<input type="hidden" name="form_action" value="batch_delete_books">';
-            checkboxes.forEach(cb => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'book_ids[]';
-                input.value = cb.value;
-                form.appendChild(input);
-            });
-            document.body.appendChild(form);
-            form.submit();
+            const ids = Array.from(checkboxes).map(cb => cb.value).join(',');
+            window.location.href = '?action=batch_delete_books&ids=' + ids + '&confirm=yes';
         }
-
-        // 打开编辑标签模态框
-        function openEditTagModal(tagName) {
-            document.getElementById('editOldTagName').value = tagName;
-            document.getElementById('editNewTagName').value = tagName;
-            openModal('editTagModal');
-        }
-
-        // 显示标签关联的书籍
-        function showTagBooks(tagName, bookIds) {
-            if (!bookIds || bookIds.trim() === '') {
-                alert('该标签暂无关联书籍');
-                return;
-            }
-            const ids = bookIds.split(',');
-            let bookLinks = '';
-            ids.forEach(function(id) {
-                if (id.trim()) {
-                    bookLinks += '<a href="?action=edit_book&id=' + id.trim() + '" target="_blank" class="block py-2 px-4 hover:bg-gray-100 border-b transition-colors">书籍 ID: ' + id.trim() + '</a>';
-                }
-            });
-            document.getElementById('tagBooksTitle').textContent = '标签 "' + tagName + '" 关联的书籍';
-            document.getElementById('tagBooksList').innerHTML = bookLinks;
-            openModal('tagBooksModal');
-        }
-
-        // 编辑用户模态框
-        function openEditUserModal(id, username, email, role) {
-            console.log('打开编辑用户模态框:', {id, username, email, role});
-            const editUserId = document.getElementById('edit_user_id');
-            const editUsername = document.getElementById('edit_username');
-            const editEmail = document.getElementById('edit_email');
-            const editRole = document.getElementById('edit_role');
-            
-            if (editUserId && editUsername && editEmail && editRole) {
-                editUserId.value = id || '';
-                editUsername.value = username || '';
-                editEmail.value = email || '';
-                editRole.value = role || 'user';
-                openModal('editUserModal');
-            } else {
-                console.error('找不到编辑用户模态框的元素:', {
-                    editUserId: !!editUserId,
-                    editUsername: !!editUsername,
-                    editEmail: !!editEmail,
-                    editRole: !!editRole
-                });
-                alert('无法打开编辑用户对话框，请刷新页面重试');
-            }
-        }
-
-        // ESC键关闭模态框
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const modals = document.querySelectorAll('[id$="Modal"]');
-                modals.forEach(modal => {
-                    if (!modal.classList.contains('hidden')) {
-                        closeModal(modal.id);
-                    }
-                });
-            }
-        });
-
-        // 点击模态框外部关闭（已通过 data-close 属性处理，这里保留作为备用）
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal-overlay') && e.target.hasAttribute('data-close')) {
-                const modal = e.target.closest('[id$="Modal"]');
-                if (modal) {
-                    closeModal(modal.id);
-                }
-            }
-        });
 
         // 使用事件委托处理所有链接点击
         document.addEventListener('click', function(e) {
-            // 使用 closest 查找最近的带有 data-action 或 data-modal 的 a 标签
-            const target = e.target.closest('a[data-action], a[data-modal]');
+            const target = e.target.closest('a[data-action]');
             if (!target) return;
             
             e.preventDefault();
             e.stopPropagation();
             
             const action = target.getAttribute('data-action');
-            const modal = target.getAttribute('data-modal');
-            
-            console.log('链接点击事件:', {action, modal, target});
-            
-            // 处理模态框操作
-            if (modal) {
-                if (target.hasAttribute('data-close')) {
-                    closeModal(modal);
-                } else {
-                    openModal(modal);
-                }
-                return;
-            }
             
             // 处理侧边栏切换
             if (action === 'toggle-sidebar') {
@@ -2160,54 +2238,6 @@ function build_page_url($action, $new_page)
             if (action === 'clear-selection') {
                 clearSelection();
                 return;
-            }
-            
-            // 处理编辑用户
-            if (action === 'edit-user') {
-                const id = target.getAttribute('data-user-id');
-                const username = target.getAttribute('data-username');
-                const email = target.getAttribute('data-email');
-                const role = target.getAttribute('data-role');
-                console.log('编辑用户点击:', {id, username, email, role, allAttrs: Array.from(target.attributes).map(a => a.name + '=' + a.value)});
-                if (id && username && email && role) {
-                    openEditUserModal(id, username, email, role);
-                } else {
-                    console.error('编辑用户参数不完整:', {id, username, email, role});
-                    alert('编辑用户参数不完整，请刷新页面重试');
-                }
-                return;
-            }
-            
-            // 处理编辑标签
-            if (target.getAttribute('data-action') === 'edit-tag') {
-                const tagName = target.getAttribute('data-tag-name');
-                if (tagName) {
-                    openEditTagModal(tagName);
-                }
-                return;
-            }
-            
-            // 处理显示标签书籍
-            if (target.getAttribute('data-action') === 'show-tag-books') {
-                const tagName = target.getAttribute('data-tag-name');
-                const bookIds = target.getAttribute('data-book-ids');
-                if (tagName && bookIds) {
-                    showTagBooks(tagName, bookIds);
-                }
-                return;
-            }
-        });
-
-        // 处理合并标签表单提交确认
-        document.addEventListener('DOMContentLoaded', function() {
-            const mergeTagForm = document.getElementById('mergeTagForm');
-            if (mergeTagForm) {
-                mergeTagForm.addEventListener('submit', function(e) {
-                    if (!confirm('确定要合并标签吗？此操作不可逆！')) {
-                        e.preventDefault();
-                        return false;
-                    }
-                });
             }
         });
     </script>
