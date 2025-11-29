@@ -944,8 +944,8 @@ function build_page_url($action, $new_page)
                             <div class="flex items-center">
                                 <i class="fas fa-user-shield text-purple-500 mr-3"></i>
                                 <div>
-                                    <p class="text-sm text-gray-600">管理员</p>
-                                    <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($_SESSION['admin_username'] ?? '未知'); ?></p>
+                                    <p class="text-sm text-gray-600">当前用户</p>
+                                    <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($_SESSION['username'] ?? '未知'); ?></p>
                                 </div>
                             </div>
                             <div class="flex items-center">
