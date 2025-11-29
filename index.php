@@ -894,7 +894,7 @@ function build_page_url($query, $type, $new_page)
                                     <div class="p-4">
                                         <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query ?? ''); ?></h3>
                                         <?php if ($book['author']): ?>
-                                            <p class="text-gray-600 mb-2 flex items-center">
+                                            <p class="text-gray-600 mb-2 flex items-center line-clamp-2">
                                                 <i class="fas fa-user text-sm mr-2"></i>
                                                 <?php echo empty($query) ? $book['author'] : highlight_matches($book['author'], $query); ?>
                                             </p>
