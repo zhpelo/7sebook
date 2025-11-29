@@ -139,7 +139,7 @@ switch ($action) {
         $daily_download_counts = [];
         $download_dates = [];
         for ($i = 27; $i >= 0; $i--) {
-            $date = date('m-d', strtotime("-$i days"));
+            $date = date('Y-m-d', strtotime("-$i days"));
             $download_dates[] = $date;
             $daily_download_counts[$date] = 0;
         }
