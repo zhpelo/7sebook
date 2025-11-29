@@ -158,51 +158,203 @@ function verify_user_login($username, $password)
 // ============================================
 
 /**
- * 检查用户今日下载次数
+ * 获取客户端真实IP地址
  */
-function check_download_limit($user_id)
+function get_client_ip()
+{
+    $ip_keys = ['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'];
+    foreach ($ip_keys as $key) {
+        if (!empty($_SERVER[$key])) {
+            $ips = explode(',', $_SERVER[$key]);
+            $ip = trim($ips[0]);
+            // 验证IP地址格式
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return $ip;
+            }
+        }
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+
+/**
+ * 检查用户今日下载次数（带IP限制）
+ * 使用更严格的时间检查，避免时区问题
+ */
+function check_download_limit($user_id, $ip_address = null)
 {
     $pdo = get_db_connection();
     if (!$pdo) {
         return false;
     }
     
+    if ($ip_address === null) {
+        $ip_address = get_client_ip();
+    }
+    
+    // 使用更精确的时间范围，避免时区边界问题
+    // 使用服务器本地时区的当前日期
+    $today_start = date('Y-m-d 00:00:00');
+    $today_end = date('Y-m-d 23:59:59');
+    
+    // 检查用户ID和IP地址的今日下载次数
     $stmt = $pdo->prepare("
         SELECT COUNT(*) 
         FROM download_logs 
-        WHERE user_id = :user_id 
-        AND DATE(download_time) = CURDATE()
+        WHERE (
+            (user_id = :user_id AND download_time >= :today_start AND download_time <= :today_end)
+            OR 
+            (ip_address = :ip_address AND download_time >= :today_start AND download_time <= :today_end)
+        )
     ");
-    $stmt->execute(['user_id' => $user_id]);
+    $stmt->execute([
+        'user_id' => $user_id,
+        'ip_address' => $ip_address,
+        'today_start' => $today_start,
+        'today_end' => $today_end
+    ]);
     $download_count = $stmt->fetchColumn();
     
     return $download_count < 5;
 }
 
 /**
- * 记录下载日志
+ * 尝试记录下载日志（原子操作，带锁）
+ * 如果超过限制则返回false，否则返回true
  */
-function log_download($user_id, $book_id)
+function try_log_download($user_id, $book_id, $ip_address = null)
 {
     $pdo = get_db_connection();
     if (!$pdo) {
         return false;
     }
     
-    $current_time = date('Y-m-d H:i:s');
-    $stmt = $pdo->prepare("
-        INSERT INTO download_logs (user_id, book_id, download_time) 
-        VALUES (:user_id, :book_id, :download_time)
-    ");
-    return $stmt->execute([
-        'user_id' => $user_id,
-        'book_id' => $book_id,
-        'download_time' => $current_time
-    ]);
+    if ($ip_address === null) {
+        $ip_address = get_client_ip();
+    }
+    
+    try {
+        // 开始事务
+        $pdo->beginTransaction();
+        
+        // 使用行锁，防止并发
+        $today_start = date('Y-m-d 00:00:00');
+        $today_end = date('Y-m-d 23:59:59');
+        
+        // 锁定相关行并检查下载次数
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM download_logs 
+            WHERE (
+                (user_id = :user_id AND download_time >= :today_start AND download_time <= :today_end)
+                OR 
+                (ip_address = :ip_address AND download_time >= :today_start AND download_time <= :today_end)
+            )
+            FOR UPDATE
+        ");
+        $stmt->execute([
+            'user_id' => $user_id,
+            'ip_address' => $ip_address,
+            'today_start' => $today_start,
+            'today_end' => $today_end
+        ]);
+        $download_count = $stmt->fetchColumn();
+        
+        // 如果已超过限制，回滚并返回false
+        if ($download_count >= 5) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        // 记录下载日志（尝试插入IP字段，如果不存在则忽略）
+        $current_time = date('Y-m-d H:i:s');
+        
+        // 先尝试带IP字段的插入（如果表结构已更新）
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO download_logs (user_id, book_id, download_time, ip_address) 
+                VALUES (:user_id, :book_id, :download_time, :ip_address)
+            ");
+            $stmt->execute([
+                'user_id' => $user_id,
+                'book_id' => $book_id,
+                'download_time' => $current_time,
+                'ip_address' => $ip_address
+            ]);
+        } catch (PDOException $e) {
+            // 如果IP字段不存在，使用旧的插入方式
+            if (strpos($e->getMessage(), 'Unknown column') !== false) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO download_logs (user_id, book_id, download_time) 
+                    VALUES (:user_id, :book_id, :download_time)
+                ");
+                $stmt->execute([
+                    'user_id' => $user_id,
+                    'book_id' => $book_id,
+                    'download_time' => $current_time
+                ]);
+            } else {
+                throw $e;
+            }
+        }
+        
+        // 提交事务
+        $pdo->commit();
+        return true;
+        
+    } catch (Exception $e) {
+        // 发生错误，回滚
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('下载日志记录失败: ' . $e->getMessage());
+        return false;
+    }
 }
 
 /**
- * 获取用户今日下载次数
+ * 记录下载日志（保持向后兼容）
+ * @deprecated 建议使用 try_log_download 代替
+ */
+function log_download($user_id, $book_id)
+{
+    $ip_address = get_client_ip();
+    $current_time = date('Y-m-d H:i:s');
+    $pdo = get_db_connection();
+    if (!$pdo) {
+        return false;
+    }
+    
+    try {
+        // 尝试带IP字段的插入
+        $stmt = $pdo->prepare("
+            INSERT INTO download_logs (user_id, book_id, download_time, ip_address) 
+            VALUES (:user_id, :book_id, :download_time, :ip_address)
+        ");
+        return $stmt->execute([
+            'user_id' => $user_id,
+            'book_id' => $book_id,
+            'download_time' => $current_time,
+            'ip_address' => $ip_address
+        ]);
+    } catch (PDOException $e) {
+        // 如果IP字段不存在，使用旧的插入方式
+        if (strpos($e->getMessage(), 'Unknown column') !== false) {
+            $stmt = $pdo->prepare("
+                INSERT INTO download_logs (user_id, book_id, download_time) 
+                VALUES (:user_id, :book_id, :download_time)
+            ");
+            return $stmt->execute([
+                'user_id' => $user_id,
+                'book_id' => $book_id,
+                'download_time' => $current_time
+            ]);
+        }
+        throw $e;
+    }
+}
+
+/**
+ * 获取用户今日下载次数（考虑IP限制）
  */
 function get_user_download_count()
 {
@@ -216,14 +368,48 @@ function get_user_download_count()
     }
     
     $user_id = get_user_id();
+    $ip_address = get_client_ip();
+    
+    // 使用更精确的时间范围
+    $today_start = date('Y-m-d 00:00:00');
+    $today_end = date('Y-m-d 23:59:59');
+    
+    // 计算用户ID和IP地址的今日下载次数（取较大值）
     $stmt = $pdo->prepare("
         SELECT COUNT(*) 
         FROM download_logs 
         WHERE user_id = :user_id 
-        AND DATE(download_time) = CURDATE()
+        AND download_time >= :today_start 
+        AND download_time <= :today_end
     ");
-    $stmt->execute(['user_id' => $user_id]);
-    return $stmt->fetchColumn();
+    $stmt->execute([
+        'user_id' => $user_id,
+        'today_start' => $today_start,
+        'today_end' => $today_end
+    ]);
+    $user_count = $stmt->fetchColumn();
+    
+    // 尝试检查IP地址的下载次数（如果表有ip_address字段）
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM download_logs 
+            WHERE ip_address = :ip_address 
+            AND download_time >= :today_start 
+            AND download_time <= :today_end
+        ");
+        $stmt->execute([
+            'ip_address' => $ip_address,
+            'today_start' => $today_start,
+            'today_end' => $today_end
+        ]);
+        $ip_count = $stmt->fetchColumn();
+        // 返回两者中的较大值
+        return max($user_count, $ip_count);
+    } catch (PDOException $e) {
+        // 如果IP字段不存在，只返回用户计数
+        return $user_count;
+    }
 }
 
 /**

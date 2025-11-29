@@ -229,60 +229,84 @@ if ($action === 'detail' && $book_id) {
 // 处理下载请求
 if ($action === 'download' && $book_id && is_logged_in()) {
     $user_id = get_user_id();
-
-    // 检查下载限制
-    if (!check_download_limit($user_id)) {
-        $download_error = '今日下载次数已达上限（5次），请明天再试';
+    
+    // 验证book_id是否为整数，防止SQL注入
+    $book_id = intval($book_id);
+    if ($book_id <= 0) {
+        $download_error = '无效的书籍ID';
     } else {
-        // 记录下载日志
-        log_download($user_id, $book_id);
-
-        $stmt = $pdo->prepare(" SELECT * FROM books  WHERE id = ? ");
+        // 先获取书籍信息，验证书籍是否存在
+        $stmt = $pdo->prepare("SELECT * FROM books WHERE id = ?");
         $stmt->execute([$book_id]);
         $book = $stmt->fetch(PDO::FETCH_ASSOC);
-
-
-        $filepath = __DIR__ . $book['file_path'];
-
-
-        // 如果文件存在，提供下载
-        if (file_exists($filepath)) {
-            switch ($book['file_format']) {
-                case 'pdf':
-                    header('Content-Type: application/pdf');
-                    break;
-                case 'epub':
-                    header('Content-Type: application/epub+zip');
-                    break;
-                case 'mobi':
-                    header('Content-Type: application/x-mobipocket-ebook');
-                    break;
-                case 'azw3':
-                    header('Content-Type: application/vnd.amazon.ebook');
-                    break;
-                case 'djvu':
-                    header('Content-Type: image/vnd.djvu');
-                    break;
-                case 'txt':
-                    header('Content-Type: text/plain');
-                    break;
-                case 'zip':
-                    header('Content-Type: application/zip');
-                    break;
-                case 'rar':
-                    header('Content-Type: application/vnd.rar');
-                    break;
-                default:
-                    header('Content-Type: application/octet-stream');
-            }
-
-            header('Content-Disposition: attachment; filename="' . basename($book['file_name']) . '"');
-            header('Content-Length: ' . filesize($filepath));
-            readfile($filepath);
-            exit;
+        
+        if (!$book) {
+            $download_error = '书籍不存在';
         } else {
-            // 如果文件不存在，返回错误
-            $download_error = '文件不存在';
+            // 使用原子操作尝试记录下载日志（如果超过限制会自动拒绝）
+            // 这个操作会在数据库层面使用锁，防止并发绕过
+            if (!try_log_download($user_id, $book_id)) {
+                $download_error = '今日下载次数已达上限（5次），请明天再试';
+            } else {
+                // 下载日志已成功记录，现在提供文件下载
+                $filepath = __DIR__ . $book['file_path'];
+                
+                // 安全检查：确保文件路径在预期目录内，防止目录遍历攻击
+                $real_path = realpath($filepath);
+                $base_dir = realpath(__DIR__);
+                
+                if (!$real_path || strpos($real_path, $base_dir) !== 0) {
+                    $download_error = '文件路径无效';
+                } elseif (!file_exists($filepath)) {
+                    $download_error = '文件不存在';
+                } else {
+                    // 清除任何之前的输出
+                    if (ob_get_level()) {
+                        ob_end_clean();
+                    }
+                    
+                    // 设置下载头
+                    switch (strtolower($book['file_format'])) {
+                        case 'pdf':
+                            header('Content-Type: application/pdf');
+                            break;
+                        case 'epub':
+                            header('Content-Type: application/epub+zip');
+                            break;
+                        case 'mobi':
+                            header('Content-Type: application/x-mobipocket-ebook');
+                            break;
+                        case 'azw3':
+                            header('Content-Type: application/vnd.amazon.ebook');
+                            break;
+                        case 'djvu':
+                            header('Content-Type: image/vnd.djvu');
+                            break;
+                        case 'txt':
+                            header('Content-Type: text/plain; charset=utf-8');
+                            break;
+                        case 'zip':
+                            header('Content-Type: application/zip');
+                            break;
+                        case 'rar':
+                            header('Content-Type: application/vnd.rar');
+                            break;
+                        default:
+                            header('Content-Type: application/octet-stream');
+                    }
+                    
+                    // 防止浏览器直接显示文件内容
+                    header('Content-Disposition: attachment; filename="' . basename($book['file_name']) . '"');
+                    header('Content-Length: ' . filesize($filepath));
+                    header('Cache-Control: no-cache, must-revalidate');
+                    header('Pragma: no-cache');
+                    header('Expires: 0');
+                    
+                    // 输出文件内容
+                    readfile($filepath);
+                    exit;
+                }
+            }
         }
     }
 }
