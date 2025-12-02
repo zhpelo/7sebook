@@ -1,4 +1,5 @@
 <?php
+
 /**
  * 公共函数库
  * 包含前台和后台共用的函数和初始化代码
@@ -18,9 +19,9 @@ if (defined('DEBUG') && DEBUG === true) {
     ini_set('display_errors', 0);
 }
 
-if(defined('TIMEZONE')) {
+if (defined('TIMEZONE')) {
     date_default_timezone_set(TIMEZONE);
-}else{
+} else {
     // 设置时区为中国上海
     date_default_timezone_set('Asia/Shanghai');
 }
@@ -41,9 +42,9 @@ if (!$pdo) {
 function get_db_connection()
 {
     global $db_host, $db_name, $db_user, $db_password, $db_charset;
-    
+
     static $pdo = null;
-    
+
     if ($pdo === null) {
         try {
             $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=$db_charset", $db_user, $db_password);
@@ -54,7 +55,7 @@ function get_db_connection()
             return null;
         }
     }
-    
+
     return $pdo;
 }
 
@@ -112,7 +113,7 @@ function set_user_session($user)
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['user_role'] = $user['role'] ?? 'user';
-    
+
     // 检查是否为管理用户，设置管理登录状态
     if (isset($user['role']) && $user['role'] === 'admin') {
         $_SESSION['admin_logged_in'] = true;
@@ -141,15 +142,15 @@ function clear_user_session()
 function verify_user_login($username, $password)
 {
     global $pdo;
-    
+
     $stmt = $pdo->prepare("SELECT id, username, password_hash, role FROM users WHERE username = ?");
     $stmt->execute([$username]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if ($user && password_verify($password, $user['password_hash'])) {
         return $user;
     }
-    
+
     return false;
 }
 
@@ -183,16 +184,16 @@ function get_client_ip()
 function check_download_limit($user_id, $ip_address = null)
 {
     global $pdo;
-    
+
     if ($ip_address === null) {
         $ip_address = get_client_ip();
     }
-    
+
     // 使用更精确的时间范围，避免时区边界问题
     // 使用服务器本地时区的当前日期
     $today_start = date('Y-m-d 00:00:00');
     $today_end = date('Y-m-d 23:59:59');
-    
+
     // 检查用户ID和IP地址的今日下载次数
     $stmt = $pdo->prepare("
         SELECT COUNT(*) 
@@ -210,7 +211,7 @@ function check_download_limit($user_id, $ip_address = null)
         'today_end' => $today_end
     ]);
     $download_count = $stmt->fetchColumn();
-    
+
     return $download_count < 5;
 }
 
@@ -221,19 +222,19 @@ function check_download_limit($user_id, $ip_address = null)
 function try_log_download($user_id, $book_id, $ip_address = null)
 {
     global $pdo;
-    
+
     if ($ip_address === null) {
         $ip_address = get_client_ip();
     }
-    
+
     try {
         // 开始事务
         $pdo->beginTransaction();
-        
+
         // 使用行锁，防止并发
         $today_start = date('Y-m-d 00:00:00');
         $today_end = date('Y-m-d 23:59:59');
-        
+
         // 锁定相关行并检查下载次数
         $stmt = $pdo->prepare("
             SELECT COUNT(*) 
@@ -252,16 +253,16 @@ function try_log_download($user_id, $book_id, $ip_address = null)
             'today_end' => $today_end
         ]);
         $download_count = $stmt->fetchColumn();
-        
+
         // 如果已超过限制，回滚并返回false
         if ($download_count >= 5) {
             $pdo->rollBack();
             return false;
         }
-        
+
         // 记录下载日志（尝试插入IP字段，如果不存在则忽略）
         $current_time = date('Y-m-d H:i:s');
-        
+
         // 先尝试带IP字段的插入（如果表结构已更新）
         try {
             $stmt = $pdo->prepare("
@@ -290,11 +291,10 @@ function try_log_download($user_id, $book_id, $ip_address = null)
                 throw $e;
             }
         }
-        
+
         // 提交事务
         $pdo->commit();
         return true;
-        
     } catch (Exception $e) {
         // 发生错误，回滚
         if ($pdo->inTransaction()) {
@@ -314,7 +314,7 @@ function log_download($user_id, $book_id)
     $ip_address = get_client_ip();
     $current_time = date('Y-m-d H:i:s');
     global $pdo;
-    
+
     try {
         // 尝试带IP字段的插入
         $stmt = $pdo->prepare("
@@ -352,16 +352,16 @@ function get_user_download_count()
     if (!is_logged_in()) {
         return 0;
     }
-    
+
     global $pdo;
-    
+
     $user_id = get_user_id();
     $ip_address = get_client_ip();
-    
+
     // 使用更精确的时间范围
     $today_start = date('Y-m-d 00:00:00');
     $today_end = date('Y-m-d 23:59:59');
-    
+
     // 计算用户ID和IP地址的今日下载次数（取较大值）
     $stmt = $pdo->prepare("
         SELECT COUNT(*) 
@@ -376,7 +376,7 @@ function get_user_download_count()
         'today_end' => $today_end
     ]);
     $user_count = $stmt->fetchColumn();
-    
+
     // 尝试检查IP地址的下载次数（如果表有ip_address字段）
     try {
         $stmt = $pdo->prepare("
@@ -406,7 +406,7 @@ function get_user_download_count()
 function get_user_info($user_id)
 {
     global $pdo;
-    
+
     $stmt = $pdo->prepare("SELECT id, username, email, created_at FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -418,7 +418,7 @@ function get_user_info($user_id)
 function update_user_password($user_id, $new_password)
 {
     global $pdo;
-    
+
     $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
     $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
     return $stmt->execute([$password_hash, $user_id]);
@@ -441,22 +441,22 @@ function validate_username($username)
     if ($len < 4 || $len > 20) {
         return ['valid' => false, 'error' => '用户名长度必须在4-20个字符之间'];
     }
-    
+
     // 检查是否以字母开头
     if (!preg_match('/^[a-zA-Z]/', $username)) {
         return ['valid' => false, 'error' => '用户名必须以字母开头'];
     }
-    
+
     // 检查是否只包含字母、数字、下划线、连字符
     if (!preg_match('/^[a-zA-Z0-9_-]+$/', $username)) {
         return ['valid' => false, 'error' => '用户名只能包含字母、数字、下划线和连字符'];
     }
-    
+
     // 检查是否包含连续特殊字符（下划线或连字符连续出现）
     if (preg_match('/[_-]{2,}/', $username)) {
         return ['valid' => false, 'error' => '用户名不能包含连续的特殊字符（下划线或连字符）'];
     }
-    
+
     return ['valid' => true, 'error' => ''];
 }
 
@@ -476,7 +476,7 @@ function validate_password($password)
     if ($len > 32) {
         return ['valid' => false, 'error' => '密码长度不能超过32个字符'];
     }
-    
+
     return ['valid' => true, 'error' => ''];
 }
 
@@ -485,11 +485,11 @@ function validate_password($password)
  */
 function update_user_email($user_id, $new_email)
 {
-   global $pdo;
-    
+    global $pdo;
+
     // 统一转为小写
     $new_email = strtolower(trim($new_email));
-    
+
     $stmt = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
     return $stmt->execute([$new_email, $user_id]);
 }
@@ -505,20 +505,20 @@ function update_user_email($user_id, $new_email)
 function log_search_history($query, $type = 'all', $results_count = 0, $user_id = null, $ip_address = null)
 {
     global $pdo;
-    
+
     if (empty($query)) {
         return false;
     }
-    
+
     if ($ip_address === null) {
         $ip_address = get_client_ip();
     }
-    
+
     // 如果用户已登录，使用用户ID
     if ($user_id === null && is_logged_in()) {
         $user_id = get_user_id();
     }
-    
+
     try {
         // 尝试插入带ip_address字段的记录
         $stmt = $pdo->prepare("
@@ -547,20 +547,53 @@ function log_search_history($query, $type = 'all', $results_count = 0, $user_id 
 function get_popular_searches($limit = 10)
 {
     global $pdo;
-    
     try {
+        // 获取热门搜索关键词统计
         $stmt = $pdo->prepare("
-            SELECT search_query, COUNT(*) as search_count
-            FROM search_history
-            WHERE search_query != ''
-            GROUP BY search_query
-            ORDER BY search_count DESC
-            LIMIT ?
-        ");
-        $stmt->execute([$limit]);
+       SELECT 
+           search_query,
+           COUNT(*) as search_count,
+           COUNT(DISTINCT user_id) as user_count,
+           COUNT(DISTINCT ip_address) as ip_count
+       FROM search_history
+       WHERE search_query != ''
+       GROUP BY search_query
+       ORDER BY search_count DESC
+       LIMIT 10
+   ");
+        $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log('获取热门搜索失败: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * 获取下载排行（按下载次数排序）
+ * @param int $limit 返回数量，默认20
+ * @return array
+ */
+function get_download_ranking($limit = 20)
+{
+    global $pdo;
+
+    try {
+         // 获取累计下载最高的10本书
+         $stmt = $pdo->prepare("
+         SELECT 
+             b.*,
+             COUNT(dl.id) as download_count
+         FROM books b
+         LEFT JOIN download_logs dl ON b.id = dl.book_id
+         GROUP BY b.id, b.title, b.author
+         ORDER BY download_count DESC
+         LIMIT 10
+     ");
+     $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('获取下载排行失败: ' . $e->getMessage());
         return [];
     }
 }
@@ -577,17 +610,17 @@ function format_file_size($bytes)
     if ($bytes === null || $bytes === '') {
         return '未知';
     }
-    
+
     $bytes = floatval($bytes);
     $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    
+
     for ($i = 0; $i < count($units); $i++) {
         if ($bytes < 1024) {
             return round($bytes, 2) . ' ' . $units[$i];
         }
         $bytes /= 1024;
     }
-    
+
     return round($bytes, 2) . ' PB';
 }
 
@@ -599,18 +632,18 @@ function format_authors($authors)
     if (empty($authors)) {
         return '佚名';
     }
-    
+
     // 使用多种分隔符分割作者名称
     $author_list = preg_split('/(;|,|；|，|、)/', $authors);
     $formatted_authors = [];
-    
+
     foreach ($author_list as $author) {
         $author = trim($author);
         if (!empty($author)) {
             $formatted_authors[] = '<a href="?q=' . urlencode($author) . '&type=author" class="text-blue-600 hover:text-blue-800 hover:underline">' . htmlspecialchars($author) . '</a>';
         }
     }
-    
+
     return implode(', ', $formatted_authors);
 }
 
@@ -622,19 +655,19 @@ function highlight_matches($text, $query)
     if (!$query || !$text) {
         return $text;
     }
-    
+
     $keywords = array_filter(explode(' ', $query), function ($k) {
         return strlen($k) > 0;
     });
     $result = $text;
-    
+
     foreach ($keywords as $keyword) {
         if (strlen($keyword) > 0) {
             $escaped_keyword = preg_quote($keyword, '/');
             $result = preg_replace('/(' . $escaped_keyword . ')/i', '<span class="bg-yellow-200">$1</span>', $result);
         }
     }
-    
+
     return $result;
 }
 
@@ -658,19 +691,19 @@ function build_search_conditions($type, $query, $format = '')
     $where_parts = [];
     $relevance_parts = [];
     $params = [];
-    
+
     // 将查询字符串按空格分割为关键词
     $keywords = array_filter(explode(' ', $query), function ($k) {
         return strlen(trim($k)) > 0;
     });
-    
+
     foreach ($keywords as $idx => $keyword) {
         $param_name = ':keyword' . $idx;
         $params[$param_name] = '%' . $keyword . '%';
-        
+
         $field_conditions = [];
         $relevance_expressions = [];
-        
+
         switch ($type) {
             case 'title':
                 $field_conditions[] = "b.title LIKE :keyword{$idx}";
@@ -694,20 +727,20 @@ function build_search_conditions($type, $query, $format = '')
                         ELSE 0
                     END";
         }
-        
+
         $where_parts[] = '(' . implode(' OR ', $field_conditions) . ')';
         $relevance_parts[] = implode(' + ', $relevance_expressions);
     }
-    
+
     // 如果指定了文件格式，则添加格式筛选条件
     if (!empty($format)) {
         $where_parts[] = "b.file_format = :format";
         $params[':format'] = $format;
     }
-    
+
     $where_clause = implode(' AND ', $where_parts);
     $relevance_clause = implode(' + ', $relevance_parts);
-    
+
     return [
         'where' => $where_clause,
         'relevance' => $relevance_clause,
@@ -726,7 +759,7 @@ function build_page_url($new_page, $base_params = [], $preserve_params = [])
 {
     // 合并基础参数
     $params = array_merge($base_params, ['page' => $new_page]);
-    
+
     // 处理需要保留的参数
     if (empty($preserve_params)) {
         // 如果未指定，保留所有非page参数
@@ -743,12 +776,12 @@ function build_page_url($new_page, $base_params = [], $preserve_params = [])
             }
         }
     }
-    
+
     // 过滤空值（但保留0和'0'）
     $params = array_filter($params, function ($value) {
         return $value !== '' && $value !== null;
     });
-    
+
     return '?' . http_build_query($params);
 }
 
@@ -764,7 +797,7 @@ function build_search_page_url($query, $type, $new_page)
     ], function ($value) {
         return !empty($value) || $value === 0;
     });
-    
+
     return build_page_url($new_page, $base_params);
 }
 
@@ -807,7 +840,7 @@ function render_pagination($current_page, $total_pages, $total_records = 0, $lim
         'class_prefix' => ''
     ];
     $options = array_merge($defaults, $options);
-    
+
     // 如果只有一页或总页数为0，不显示分页
     if ($total_pages <= 1) {
         if ($options['show_info'] && $total_records > 0) {
@@ -815,34 +848,34 @@ function render_pagination($current_page, $total_pages, $total_records = 0, $lim
         }
         return '';
     }
-    
+
     // 确定URL构建方式
     if ($url_builder === null) {
         // 默认使用统一的分页URL构建函数
-        $url_builder = function($page) {
+        $url_builder = function ($page) {
             return build_page_url($page);
         };
     } elseif (is_array($url_builder)) {
         // 如果是数组，使用统一的分页URL构建函数
         $base_params = $url_builder['base_params'] ?? [];
         $preserve_params = $url_builder['preserve_params'] ?? [];
-        $url_builder = function($page) use ($base_params, $preserve_params) {
+        $url_builder = function ($page) use ($base_params, $preserve_params) {
             return build_page_url($page, $base_params, $preserve_params);
         };
     }
-    
+
     // 计算显示的页码范围
     $half = floor($options['max_buttons'] / 2);
     $start_page = max(1, $current_page - $half);
     $end_page = min($total_pages, $start_page + $options['max_buttons'] - 1);
-    
+
     // 如果右侧空间不足，向左调整
     if ($end_page - $start_page < $options['max_buttons'] - 1) {
         $start_page = max(1, $end_page - $options['max_buttons'] + 1);
     }
-    
+
     ob_start();
-    ?>
+?>
     <div class="pagination-container <?php echo htmlspecialchars($options['class_prefix']); ?>">
         <?php if ($options['show_info']): ?>
             <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
@@ -852,13 +885,13 @@ function render_pagination($current_page, $total_pages, $total_records = 0, $lim
                 </div>
             </div>
         <?php endif; ?>
-        
+
         <div class="flex flex-wrap justify-center items-center gap-2">
             <?php if ($options['show_prev_next']): ?>
                 <!-- 上一页按钮 -->
                 <?php if ($current_page > 1): ?>
-                    <a href="<?php echo htmlspecialchars($url_builder($current_page - 1)); ?>" 
-                       class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <a href="<?php echo htmlspecialchars($url_builder($current_page - 1)); ?>"
+                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                         <i class="fas fa-chevron-left mr-1"></i> 上一页
                     </a>
                 <?php else: ?>
@@ -867,18 +900,18 @@ function render_pagination($current_page, $total_pages, $total_records = 0, $lim
                     </span>
                 <?php endif; ?>
             <?php endif; ?>
-            
+
             <?php if ($options['show_first_last'] && $start_page > 1): ?>
                 <!-- 首页按钮 -->
-                <a href="<?php echo htmlspecialchars($url_builder(1)); ?>" 
-                   class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <a href="<?php echo htmlspecialchars($url_builder(1)); ?>"
+                    class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                     1
                 </a>
                 <?php if ($start_page > 2): ?>
                     <span class="px-2 text-gray-500">...</span>
                 <?php endif; ?>
             <?php endif; ?>
-            
+
             <!-- 页码按钮 -->
             <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
                 <?php if ($i == $current_page): ?>
@@ -886,29 +919,29 @@ function render_pagination($current_page, $total_pages, $total_records = 0, $lim
                         <?php echo $i; ?>
                     </span>
                 <?php else: ?>
-                    <a href="<?php echo htmlspecialchars($url_builder($i)); ?>" 
-                       class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <a href="<?php echo htmlspecialchars($url_builder($i)); ?>"
+                        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                         <?php echo $i; ?>
                     </a>
                 <?php endif; ?>
             <?php endfor; ?>
-            
+
             <?php if ($options['show_first_last'] && $end_page < $total_pages): ?>
                 <!-- 末页按钮 -->
                 <?php if ($end_page < $total_pages - 1): ?>
                     <span class="px-2 text-gray-500">...</span>
                 <?php endif; ?>
-                <a href="<?php echo htmlspecialchars($url_builder($total_pages)); ?>" 
-                   class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <a href="<?php echo htmlspecialchars($url_builder($total_pages)); ?>"
+                    class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                     <?php echo $total_pages; ?>
                 </a>
             <?php endif; ?>
-            
+
             <?php if ($options['show_prev_next']): ?>
                 <!-- 下一页按钮 -->
                 <?php if ($current_page < $total_pages): ?>
-                    <a href="<?php echo htmlspecialchars($url_builder($current_page + 1)); ?>" 
-                       class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <a href="<?php echo htmlspecialchars($url_builder($current_page + 1)); ?>"
+                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                         下一页 <i class="fas fa-chevron-right ml-1"></i>
                     </a>
                 <?php else: ?>
@@ -917,24 +950,24 @@ function render_pagination($current_page, $total_pages, $total_records = 0, $lim
                     </span>
                 <?php endif; ?>
             <?php endif; ?>
-            
+
             <?php if ($options['show_jump'] && $total_pages > $options['max_buttons']): ?>
                 <!-- 跳转输入框 -->
-                <?php 
+                <?php
                 $jump_id = 'pagination-jump-' . md5($url_builder(1) . $current_page);
                 $jump_url_template = $url_builder(1);
                 ?>
                 <div class="flex items-center gap-2 ml-2">
                     <span class="text-sm text-gray-600">跳至</span>
-                    <input type="number" 
-                           id="<?php echo $jump_id; ?>" 
-                           min="1" 
-                           max="<?php echo $total_pages; ?>" 
-                           value="<?php echo $current_page; ?>"
-                           class="w-16 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <button type="button" 
-                            onclick="paginationJump('<?php echo $jump_id; ?>', <?php echo $total_pages; ?>, '<?php echo htmlspecialchars($jump_url_template, ENT_QUOTES); ?>')" 
-                            class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                    <input type="number"
+                        id="<?php echo $jump_id; ?>"
+                        min="1"
+                        max="<?php echo $total_pages; ?>"
+                        value="<?php echo $current_page; ?>"
+                        class="w-16 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <button type="button"
+                        onclick="paginationJump('<?php echo $jump_id; ?>', <?php echo $total_pages; ?>, '<?php echo htmlspecialchars($jump_url_template, ENT_QUOTES); ?>')"
+                        class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
                         确定
                     </button>
                 </div>
@@ -974,7 +1007,7 @@ function render_pagination($current_page, $total_pages, $total_records = 0, $lim
             <?php endif; ?>
         </div>
     </div>
-    <?php
+<?php
     return ob_get_clean();
 }
 
@@ -1007,12 +1040,12 @@ function generate_book_structured_data($book)
         'inLanguage' => $book['languages'],
         'isbn' => $book['identifiers']
     ];
-    
+
     // 移除空值
     $data = array_filter($data, function ($value) {
         return !empty($value) && $value !== '暂无资料';
     });
-    
+
     return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
@@ -1029,7 +1062,7 @@ function generate_breadcrumb_structured_data($action, $book = null)
             'item' => 'https://' . $_SERVER['HTTP_HOST'] . '/'
         ]
     ];
-    
+
     if ($action === 'detail' && $book) {
         $items[] = [
             '@type' => 'ListItem',
@@ -1045,7 +1078,7 @@ function generate_breadcrumb_structured_data($action, $book = null)
             'item' => 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']
         ];
     }
-    
+
     return json_encode([
         '@context' => 'https://schema.org',
         '@type' => 'BreadcrumbList',
@@ -1061,18 +1094,53 @@ function generate_breadcrumb_structured_data($action, $book = null)
  * 支持的文件格式列表
  */
 define('SUPPORTED_EXTS', [
-    'azw', 'azw1', 'azw3', 'azw4', 'cb7', 'cbc', 'cbr', 'cbz', 'chm',
-    'docx', 'epub', 'fb2', 'fbz', 'html', 'htmlz', 'imp', 'kepub',
-    'lit', 'lrf', 'lrx', 'mobi', 'odt', 'oebzip', 'opf', 'pdb', 'pdf',
-    'pml', 'pmlz', 'pobi', 'prc', 'rar', 'rb', 'rtf', 'snb', 'tpz',
-    'txt', 'txtz', 'updb', 'zip'
+    'azw',
+    'azw1',
+    'azw3',
+    'azw4',
+    'cb7',
+    'cbc',
+    'cbr',
+    'cbz',
+    'chm',
+    'docx',
+    'epub',
+    'fb2',
+    'fbz',
+    'html',
+    'htmlz',
+    'imp',
+    'kepub',
+    'lit',
+    'lrf',
+    'lrx',
+    'mobi',
+    'odt',
+    'oebzip',
+    'opf',
+    'pdb',
+    'pdf',
+    'pml',
+    'pmlz',
+    'pobi',
+    'prc',
+    'rar',
+    'rb',
+    'rtf',
+    'snb',
+    'tpz',
+    'txt',
+    'txtz',
+    'updb',
+    'zip'
 ]);
 
 // 兼容旧代码的变量
 $supported_exts = SUPPORTED_EXTS;
 
 //清理或转换字符串为合法 UTF-8
-function clean_to_utf8($str, $fromEncoding = 'auto') {
+function clean_to_utf8($str, $fromEncoding = 'auto')
+{
     // 如果已经是合法 UTF-8，直接返回
     if (mb_check_encoding($str, 'UTF-8')) {
         return $str;
@@ -1099,16 +1167,17 @@ function clean_to_utf8($str, $fromEncoding = 'auto') {
  * @param string $query 搜索关键词（用于高亮显示）
  * @param string $container_id 容器ID（用于布局切换）
  */
-function render_books_list($books, $layout = 'grid', $query = '', $container_id = 'booksList') {
+function render_books_list($books, $layout = 'grid', $query = '', $container_id = 'booksList')
+{
     if (empty($books)) {
         return '';
     }
-    
+
     $layout_class = $layout === 'list' ? 'list' : 'grid';
     $grid_class = $layout === 'list' ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
-    
+
     ob_start();
-    ?>
+?>
     <div id="<?php echo htmlspecialchars($container_id); ?>" class="books-container" data-layout="<?php echo htmlspecialchars($layout); ?>">
         <?php if ($layout === 'list'): ?>
             <!-- 列表布局 -->
@@ -1198,8 +1267,8 @@ function render_books_list($books, $layout = 'grid', $query = '', $container_id 
                             <div class="p-4">
                                 <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query); ?></h3>
                                 <?php if (!empty($book['description'])): ?>
-                                        <p class="text-gray-500 text-sm line-clamp-2 mb-2"><?php echo htmlspecialchars(substr($book['description'], 0, 150)); ?><?php echo strlen($book['description']) > 150 ? '...' : ''; ?></p>
-                                    <?php endif; ?>
+                                    <p class="text-gray-500 text-sm line-clamp-2 mb-2"><?php echo htmlspecialchars(substr($book['description'], 0, 150)); ?><?php echo strlen($book['description']) > 150 ? '...' : ''; ?></p>
+                                <?php endif; ?>
 
                                 <?php if ($book['author']): ?>
                                     <p class="text-gray-600 mb-2 line-clamp-2">
@@ -1223,6 +1292,6 @@ function render_books_list($books, $layout = 'grid', $query = '', $container_id 
             </div>
         <?php endif; ?>
     </div>
-    <?php
+<?php
     return ob_get_clean();
 }
