@@ -646,21 +646,22 @@ function build_page_url($query, $type, $new_page)
 
                             <div class="grid grid-cols-2 gap-4 mb-6">
                                 <div class="bg-blue-50 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-500">类别</div>
-                                    <div class="font-semibold"><?php echo htmlspecialchars($book['category'] ?? "未归类"); ?></div>
+                                    <div class="text-sm text-gray-500">文件类型</div>
+                                    <div class="font-semibold"><?php echo htmlspecialchars($book['file_format']); ?></div>
                                 </div>
                                 <div class="bg-green-50 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-500">出版社</div>
-                                    <div class="font-semibold"><?php echo htmlspecialchars($book['publisher'] ?? "暂无资料"); ?></div>
+                                    <div class="text-sm text-gray-500">文件大小</div>
+                                    <div class="font-semibold"><?php echo format_file_size($book['file_size']); ?></div>
                                 </div>
                                 <div class="bg-yellow-50 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-500">出版日期</div>
-                                    <div class="font-semibold"><?php echo substr($book['published_at'] ?? "", 0, 7) ?: "暂无资料"; ?></div>
+                                    <div class="text-sm text-gray-500">内容语言</div>
+                                    <div class="font-semibold"><?php echo $book['languages'] ?: "简体中文"; ?></div>
                                 </div>
                                 <div class="bg-purple-50 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-500">ISBN</div>
-                                    <div class="font-semibold"><?php echo htmlspecialchars($book['identifiers'] ?? "暂无资料"); ?></div>
+                                    <div class="text-sm text-gray-500">更新时间</div>
+                                    <div class="font-semibold"><?php echo substr($book['updated_at'], 0, 10); ?></div>
                                 </div>
+                                
                             </div>
 
                             <div class="mb-6">
@@ -678,26 +679,6 @@ function build_page_url($query, $type, $new_page)
                                     <?php else: ?>
                                         <span class="text-gray-500">暂无标签</span>
                                     <?php endif; ?>
-                                </div>
-                            </div>
-
-                            <div class="mb-6">
-                                <h2 class="text-xl font-semibold text-gray-800 mb-2">文件信息</h2>
-                                <div class="bg-gray-50 p-4 rounded-lg">
-                                    <div class="grid grid-cols-3 gap-4">
-                                        <div>
-                                            <div class="text-sm text-gray-500">格式</div>
-                                            <div class="font-semibold"><?php echo htmlspecialchars($book['file_format']); ?></div>
-                                        </div>
-                                        <div>
-                                            <div class="text-sm text-gray-500">大小</div>
-                                            <div class="font-semibold"><?php echo format_file_size($book['file_size']); ?></div>
-                                        </div>
-                                        <div>
-                                            <div class="text-sm text-gray-500">语言</div>
-                                            <div class="font-semibold"><?php echo $book['languages'] ?? "未知"; ?></div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
