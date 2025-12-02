@@ -392,12 +392,6 @@ if ($action === 'search') {
     }
 }
 
-// 使用 common.php 中的函数，无需重复定义
-// 为兼容性保留 build_page_url 别名（用于前台搜索）
-function build_page_url($query, $type, $new_page)
-{
-    return build_search_page_url($query, $type, $new_page);
-}
 ?>
 
 <!DOCTYPE html>
@@ -1039,31 +1033,26 @@ function build_page_url($query, $type, $new_page)
 
                     <!-- 分页 -->
                     <?php if ((!empty($query) || empty($query)) && ($total ?? 0) > $limit): ?>
-                        <div class="flex flex-wrap justify-center items-center gap-2 mb-8">
-                            <?php
-                            $total_pages = ceil($total / $limit);
-                            $start_page = max(1, $page - 2);
-                            $end_page = min($total_pages, $page + 2);
-                            ?>
-
-                            <?php if ($page > 1): ?>
-                                <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $page - 1); ?>" class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                    <i class="fas fa-chevron-left mr-1"></i> 上一页
-                                </a>
-                            <?php endif; ?>
-
-                            <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
-                                <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600 border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-
-                            <?php if ($page < $total_pages): ?>
-                                <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $page + 1); ?>" class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                    下一页 <i class="fas fa-chevron-right ml-1"></i>
-                                </a>
-                            <?php endif; ?>
-                        </div>
+                        <?php
+                        $total_pages = ceil($total / $limit);
+                        $base_params = array_filter([
+                            'q' => $query ?? '',
+                            'type' => $type ?? 'all',
+                            'format' => $_GET['format'] ?? ''
+                        ], function ($value) {
+                            return !empty($value) || $value === 0;
+                        });
+                        echo render_pagination($page, $total_pages, $total, $limit, [
+                            'base_params' => $base_params,
+                            'preserve_params' => []
+                        ], [
+                            'show_info' => false, // 已在上面显示
+                            'show_jump' => true,
+                            'max_buttons' => 5,
+                            'show_first_last' => true,
+                            'show_prev_next' => true
+                        ]);
+                        ?>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>

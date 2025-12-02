@@ -586,37 +586,266 @@ function build_search_conditions($type, $query, $format = '')
 }
 
 /**
- * 构建分页URL（前台搜索使用）
+ * 统一的分页URL构建函数
+ * @param int $new_page 目标页码
+ * @param array $base_params 基础参数数组（如 ['action' => 'books'] 或 ['q' => 'test', 'type' => 'all']）
+ * @param array $preserve_params 需要保留的GET参数列表（如 ['search', 'format']），为空则保留所有非page参数
+ * @return string 分页URL
  */
-function build_search_page_url($query, $type, $new_page)
+function build_page_url($new_page, $base_params = [], $preserve_params = [])
 {
-    // 获取当前的format参数
-    $format = $_GET['format'] ?? '';
+    // 合并基础参数
+    $params = array_merge($base_params, ['page' => $new_page]);
     
-    // 构建参数数组
-    $params = array_filter([
-        'q' => $query,
-        'type' => $type,
-        'format' => $format,
-        'page' => $new_page
-    ], function ($value) {
-        return !empty($value) || $value === 0;
+    // 处理需要保留的参数
+    if (empty($preserve_params)) {
+        // 如果未指定，保留所有非page参数
+        foreach ($_GET as $key => $value) {
+            if ($key !== 'page' && !isset($base_params[$key])) {
+                $params[$key] = $value;
+            }
+        }
+    } else {
+        // 只保留指定的参数
+        foreach ($preserve_params as $key) {
+            if (isset($_GET[$key]) && !isset($base_params[$key])) {
+                $params[$key] = $_GET[$key];
+            }
+        }
+    }
+    
+    // 过滤空值（但保留0和'0'）
+    $params = array_filter($params, function ($value) {
+        return $value !== '' && $value !== null;
     });
     
     return '?' . http_build_query($params);
 }
 
 /**
- * 构建分页URL（后台管理使用）
+ * 构建分页URL（前台搜索使用）- 保持向后兼容
+ */
+function build_search_page_url($query, $type, $new_page)
+{
+    $base_params = array_filter([
+        'q' => $query,
+        'type' => $type,
+        'format' => $_GET['format'] ?? ''
+    ], function ($value) {
+        return !empty($value) || $value === 0;
+    });
+    
+    return build_page_url($new_page, $base_params);
+}
+
+/**
+ * 构建分页URL（后台管理使用）- 保持向后兼容
  */
 function build_admin_page_url($action, $new_page, $additional_params = [])
 {
-    $params = array_merge([
-        'action' => $action,
-        'page' => $new_page
-    ], $additional_params);
+    $base_params = array_merge(['action' => $action], $additional_params);
+    return build_page_url($new_page, $base_params);
+}
+
+/**
+ * 渲染分页导航HTML
+ * @param int $current_page 当前页码
+ * @param int $total_pages 总页数
+ * @param int $total_records 总记录数
+ * @param int $limit 每页记录数
+ * @param callable|array $url_builder URL构建器，可以是函数或参数数组
+ *   - 如果是函数：function($page) { return '?page=' . $page; }
+ *   - 如果是数组：['base_params' => [...], 'preserve_params' => [...]]
+ * @param array $options 配置选项
+ *   - 'show_info' => true/false 是否显示分页信息（默认true）
+ *   - 'show_jump' => true/false 是否显示跳转输入框（默认true）
+ *   - 'max_buttons' => int 最多显示的分页按钮数（默认5）
+ *   - 'show_first_last' => true/false 是否显示首页/末页按钮（默认true）
+ *   - 'show_prev_next' => true/false 是否显示上一页/下一页按钮（默认true）
+ *   - 'class_prefix' => string CSS类前缀（默认''）
+ * @return string 分页HTML
+ */
+function render_pagination($current_page, $total_pages, $total_records = 0, $limit = 20, $url_builder = null, $options = [])
+{
+    // 默认配置
+    $defaults = [
+        'show_info' => true,
+        'show_jump' => true,
+        'max_buttons' => 5,
+        'show_first_last' => true,
+        'show_prev_next' => true,
+        'class_prefix' => ''
+    ];
+    $options = array_merge($defaults, $options);
     
-    return '?' . http_build_query($params);
+    // 如果只有一页或总页数为0，不显示分页
+    if ($total_pages <= 1) {
+        if ($options['show_info'] && $total_records > 0) {
+            return '<div class="text-sm text-gray-700 text-center py-4">共 ' . number_format($total_records) . ' 条记录</div>';
+        }
+        return '';
+    }
+    
+    // 确定URL构建方式
+    if ($url_builder === null) {
+        // 默认使用统一的分页URL构建函数
+        $url_builder = function($page) {
+            return build_page_url($page);
+        };
+    } elseif (is_array($url_builder)) {
+        // 如果是数组，使用统一的分页URL构建函数
+        $base_params = $url_builder['base_params'] ?? [];
+        $preserve_params = $url_builder['preserve_params'] ?? [];
+        $url_builder = function($page) use ($base_params, $preserve_params) {
+            return build_page_url($page, $base_params, $preserve_params);
+        };
+    }
+    
+    // 计算显示的页码范围
+    $half = floor($options['max_buttons'] / 2);
+    $start_page = max(1, $current_page - $half);
+    $end_page = min($total_pages, $start_page + $options['max_buttons'] - 1);
+    
+    // 如果右侧空间不足，向左调整
+    if ($end_page - $start_page < $options['max_buttons'] - 1) {
+        $start_page = max(1, $end_page - $options['max_buttons'] + 1);
+    }
+    
+    ob_start();
+    ?>
+    <div class="pagination-container <?php echo htmlspecialchars($options['class_prefix']); ?>">
+        <?php if ($options['show_info']): ?>
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+                <div class="text-sm text-gray-700">
+                    共 <span class="font-bold text-blue-600"><?php echo number_format($total_records); ?></span> 条记录，
+                    第 <span class="font-bold"><?php echo $current_page; ?></span> / <span class="font-bold"><?php echo $total_pages; ?></span> 页
+                </div>
+            </div>
+        <?php endif; ?>
+        
+        <div class="flex flex-wrap justify-center items-center gap-2">
+            <?php if ($options['show_prev_next']): ?>
+                <!-- 上一页按钮 -->
+                <?php if ($current_page > 1): ?>
+                    <a href="<?php echo htmlspecialchars($url_builder($current_page - 1)); ?>" 
+                       class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fas fa-chevron-left mr-1"></i> 上一页
+                    </a>
+                <?php else: ?>
+                    <span class="flex items-center px-3 py-2 text-sm font-medium text-gray-300 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed">
+                        <i class="fas fa-chevron-left mr-1"></i> 上一页
+                    </span>
+                <?php endif; ?>
+            <?php endif; ?>
+            
+            <?php if ($options['show_first_last'] && $start_page > 1): ?>
+                <!-- 首页按钮 -->
+                <a href="<?php echo htmlspecialchars($url_builder(1)); ?>" 
+                   class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    1
+                </a>
+                <?php if ($start_page > 2): ?>
+                    <span class="px-2 text-gray-500">...</span>
+                <?php endif; ?>
+            <?php endif; ?>
+            
+            <!-- 页码按钮 -->
+            <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                <?php if ($i == $current_page): ?>
+                    <span class="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg">
+                        <?php echo $i; ?>
+                    </span>
+                <?php else: ?>
+                    <a href="<?php echo htmlspecialchars($url_builder($i)); ?>" 
+                       class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <?php echo $i; ?>
+                    </a>
+                <?php endif; ?>
+            <?php endfor; ?>
+            
+            <?php if ($options['show_first_last'] && $end_page < $total_pages): ?>
+                <!-- 末页按钮 -->
+                <?php if ($end_page < $total_pages - 1): ?>
+                    <span class="px-2 text-gray-500">...</span>
+                <?php endif; ?>
+                <a href="<?php echo htmlspecialchars($url_builder($total_pages)); ?>" 
+                   class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <?php echo $total_pages; ?>
+                </a>
+            <?php endif; ?>
+            
+            <?php if ($options['show_prev_next']): ?>
+                <!-- 下一页按钮 -->
+                <?php if ($current_page < $total_pages): ?>
+                    <a href="<?php echo htmlspecialchars($url_builder($current_page + 1)); ?>" 
+                       class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        下一页 <i class="fas fa-chevron-right ml-1"></i>
+                    </a>
+                <?php else: ?>
+                    <span class="flex items-center px-3 py-2 text-sm font-medium text-gray-300 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed">
+                        下一页 <i class="fas fa-chevron-right ml-1"></i>
+                    </span>
+                <?php endif; ?>
+            <?php endif; ?>
+            
+            <?php if ($options['show_jump'] && $total_pages > $options['max_buttons']): ?>
+                <!-- 跳转输入框 -->
+                <?php 
+                $jump_id = 'pagination-jump-' . md5($url_builder(1) . $current_page);
+                $jump_url_template = $url_builder(1);
+                ?>
+                <div class="flex items-center gap-2 ml-2">
+                    <span class="text-sm text-gray-600">跳至</span>
+                    <input type="number" 
+                           id="<?php echo $jump_id; ?>" 
+                           min="1" 
+                           max="<?php echo $total_pages; ?>" 
+                           value="<?php echo $current_page; ?>"
+                           class="w-16 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <button type="button" 
+                            onclick="paginationJump('<?php echo $jump_id; ?>', <?php echo $total_pages; ?>, '<?php echo htmlspecialchars($jump_url_template, ENT_QUOTES); ?>')" 
+                            class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                        确定
+                    </button>
+                </div>
+                <script>
+                    (function() {
+                        if (typeof window.paginationJump === 'undefined') {
+                            window.paginationJump = function(inputId, maxPage, urlTemplate) {
+                                const input = document.getElementById(inputId);
+                                if (!input) return;
+                                const page = parseInt(input.value);
+                                if (page >= 1 && page <= maxPage) {
+                                    // 替换URL中的页码，如果URL中没有page参数则添加
+                                    let url = urlTemplate;
+                                    if (url.includes('page=')) {
+                                        url = url.replace(/page=\d+/, 'page=' + page);
+                                    } else {
+                                        url += (url.includes('?') ? '&' : '?') + 'page=' + page;
+                                    }
+                                    window.location.href = url;
+                                } else {
+                                    alert('请输入 1 到 ' + maxPage + ' 之间的页码');
+                                    input.focus();
+                                }
+                            };
+                        }
+                        // 支持回车键跳转
+                        const input = document.getElementById('<?php echo $jump_id; ?>');
+                        if (input) {
+                            input.addEventListener('keypress', function(e) {
+                                if (e.key === 'Enter') {
+                                    window.paginationJump('<?php echo $jump_id; ?>', <?php echo $total_pages; ?>, '<?php echo htmlspecialchars($jump_url_template, ENT_QUOTES); ?>');
+                                }
+                            });
+                        }
+                    })();
+                </script>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
 }
 
 /**

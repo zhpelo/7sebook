@@ -742,12 +742,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'admin_settings') {
 $message = $_GET['message'] ?? null;
 $error = $_GET['error'] ?? null;
 
-// 使用 common.php 中的函数
-// build_admin_page_url 已在 common.php 中定义
-function build_page_url($action, $new_page)
-{
-    return build_admin_page_url($action, $new_page);
-}
 ?>
 
 <!DOCTYPE html>
@@ -813,7 +807,11 @@ function build_page_url($action, $new_page)
                 <i class="fas fa-cog w-5 mr-3"></i>
                 <span>管理员设置</span>
             </a>
-            <a href="?action=logout" class="flex items-center py-3 px-4 rounded-lg transition-colors text-gray-300 hover:bg-red-600 hover:text-white mt-4">
+            <a href="index.php" target="_blank" class="flex items-center py-3 px-4 rounded-lg transition-colors text-gray-300 hover:bg-blue-600 hover:text-white mt-4">
+                <i class="fas fa-external-link-alt w-5 mr-3"></i>
+                <span>访问前台</span>
+            </a>
+            <a href="?action=logout" class="flex items-center py-3 px-4 rounded-lg transition-colors text-gray-300 hover:bg-red-600 hover:text-white">
                 <i class="fas fa-sign-out-alt w-5 mr-3"></i>
                 <span>退出登录</span>
             </a>
@@ -826,7 +824,9 @@ function build_page_url($action, $new_page)
             <i class="fas fa-bars text-gray-700"></i>
         </a>
         <h1 class="text-lg font-bold text-gray-800">七秒后台</h1>
-        <div class="w-10"></div>
+        <a href="index.php" target="_blank" class="p-2 rounded-lg hover:bg-blue-100 text-blue-600" title="访问前台">
+            <i class="fas fa-external-link-alt"></i>
+        </a>
     </header>
 
     <!-- 主内容区域 -->
@@ -854,7 +854,13 @@ function build_page_url($action, $new_page)
         <?php if ($action === 'dashboard'): ?>
             <!-- 仪表盘 -->
                 <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">系统概览</h2>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">系统概览</h2>
+                        <a href="index.php" target="_blank" class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-external-link-alt mr-2"></i>
+                            <span>访问前台</span>
+                        </a>
+                    </div>
 
                     <!-- 统计卡片 -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
@@ -1156,31 +1162,17 @@ function build_page_url($action, $new_page)
 
                 <!-- 分页 -->
                 <?php if ($total_pages > 1): ?>
-                        <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
-                            <div class="text-sm text-gray-700">
-                                共 <?php echo $total_users; ?> 条记录，第 <?php echo $page; ?> / <?php echo $total_pages; ?> 页
-                            </div>
-                        <nav class="flex items-center space-x-2">
-                                <?php if ($page > 1): ?>
-                                    <a href="<?php echo build_page_url('users', $page - 1) . (!empty($user_search) ? '&search=' . urlencode($user_search) : ''); ?>" 
-                                        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                        上一页
-                                    </a>
-                                <?php endif; ?>
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                    <a href="<?php echo build_page_url('users', $i) . (!empty($user_search) ? '&search=' . urlencode($user_search) : ''); ?>" 
-                                        class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                                <?php if ($page < $total_pages): ?>
-                                    <a href="<?php echo build_page_url('users', $page + 1) . (!empty($user_search) ? '&search=' . urlencode($user_search) : ''); ?>" 
-                                        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                        下一页
-                                    </a>
-                                <?php endif; ?>
-                        </nav>
-                    </div>
+                    <?php
+                    $base_params = ['action' => 'users'];
+                    $additional_params = [];
+                    if (!empty($user_search)) {
+                        $additional_params['search'] = $user_search;
+                    }
+                    echo render_pagination($page, $total_pages, $total_users, $limit, [
+                        'base_params' => array_merge($base_params, $additional_params),
+                        'preserve_params' => []
+                    ]);
+                    ?>
                 <?php endif; ?>
             </div>
 
@@ -1567,31 +1559,17 @@ function build_page_url($action, $new_page)
 
                 <!-- 分页 -->
                 <?php if ($total_pages > 1): ?>
-                        <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
-                            <div class="text-sm text-gray-700">
-                                共 <?php echo $total_books; ?> 条记录，第 <?php echo $page; ?> / <?php echo $total_pages; ?> 页
-                            </div>
-                        <nav class="flex items-center space-x-2">
-                                <?php if ($page > 1): ?>
-                                    <a href="<?php echo build_page_url('books', $page - 1) . (!empty($book_search) ? '&search=' . urlencode($book_search) : ''); ?>" 
-                                        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                        上一页
-                                    </a>
-                                <?php endif; ?>
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                    <a href="<?php echo build_page_url('books', $i) . (!empty($book_search) ? '&search=' . urlencode($book_search) : ''); ?>" 
-                                        class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                                <?php if ($page < $total_pages): ?>
-                                    <a href="<?php echo build_page_url('books', $page + 1) . (!empty($book_search) ? '&search=' . urlencode($book_search) : ''); ?>" 
-                                        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                        下一页
-                                    </a>
-                                <?php endif; ?>
-                        </nav>
-                    </div>
+                    <?php
+                    $base_params = ['action' => 'books'];
+                    $additional_params = [];
+                    if (!empty($book_search)) {
+                        $additional_params['search'] = $book_search;
+                    }
+                    echo render_pagination($page, $total_pages, $total_books, $limit, [
+                        'base_params' => array_merge($base_params, $additional_params),
+                        'preserve_params' => []
+                    ]);
+                    ?>
                 <?php endif; ?>
             </div>
 
@@ -1684,31 +1662,12 @@ function build_page_url($action, $new_page)
 
                 <!-- 分页 -->
                 <?php if ($total_pages > 1): ?>
-                        <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
-                            <div class="text-sm text-gray-700">
-                                共 <?php echo $total_downloads; ?> 条记录，第 <?php echo $page; ?> / <?php echo $total_pages; ?> 页
-                            </div>
-                        <nav class="flex items-center space-x-2">
-                                <?php if ($page > 1): ?>
-                                    <a href="<?php echo build_page_url('downloads', $page - 1); ?>" 
-                                        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                        上一页
-                                    </a>
-                                <?php endif; ?>
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                    <a href="<?php echo build_page_url('downloads', $i); ?>" 
-                                        class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                                <?php if ($page < $total_pages): ?>
-                                    <a href="<?php echo build_page_url('downloads', $page + 1); ?>" 
-                                        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                        下一页
-                                    </a>
-                                <?php endif; ?>
-                        </nav>
-                    </div>
+                    <?php
+                    echo render_pagination($page, $total_pages, $total_downloads, $limit, [
+                        'base_params' => ['action' => 'downloads'],
+                        'preserve_params' => []
+                    ]);
+                    ?>
                 <?php endif; ?>
             </div>
 
@@ -1918,23 +1877,17 @@ function build_page_url($action, $new_page)
 
                 <!-- 分页 -->
                 <?php if ($total_pages > 1): ?>
-                    <div class="flex justify-center mt-6">
-                        <nav class="flex items-center space-x-2">
-                            <?php
-                            $query_params = ['action' => 'tags'];
-                            if (!empty($tag_search)) {
-                                $query_params['search'] = $tag_search;
-                            }
-                            ?>
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                <?php $query_params['page'] = $i; ?>
-                                <a href="?<?php echo http_build_query($query_params); ?>"
-                                    class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
-                        </nav>
-                    </div>
+                    <?php
+                    $base_params = ['action' => 'tags'];
+                    $additional_params = [];
+                    if (!empty($tag_search)) {
+                        $additional_params['search'] = $tag_search;
+                    }
+                    echo render_pagination($page, $total_pages, $total_tags, $limit, [
+                        'base_params' => array_merge($base_params, $additional_params),
+                        'preserve_params' => []
+                    ]);
+                    ?>
                 <?php endif; ?>
             </div>
 
