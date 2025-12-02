@@ -25,6 +25,11 @@ if(defined('TIMEZONE')) {
     date_default_timezone_set('Asia/Shanghai');
 }
 
+$pdo = get_db_connection();
+// 检查数据库连接
+if (!$pdo) {
+    die('数据库连接失败');
+}
 // ============================================
 // 数据库连接
 // ============================================
@@ -52,9 +57,7 @@ function get_db_connection()
     
     return $pdo;
 }
-if(!isset($pdo)) {
-    $pdo = get_db_connection();
-}
+
 
 // ============================================
 // 用户认证相关函数

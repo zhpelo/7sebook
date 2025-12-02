@@ -9,10 +9,7 @@ if (!is_admin_logged_in()) {
     exit;
 }
 
-// 检查数据库连接
-if (!$pdo) {
-    die('数据库连接失败');
-}
+
 
 // 已登录，处理管理功能
 $action = $_GET['action'] ?? 'dashboard';

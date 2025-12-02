@@ -8,5 +8,5 @@ $db_host = 'localhost';
 $db_name = 'local';
 $db_user = 'root';
 $db_password = 'root';
-$db_charset = 'utf8';
+$db_charset = 'utf8mb4';
 ?>

@@ -3,11 +3,6 @@
 session_start();
 require 'common.php';
 
-// 检查数据库连接
-if (!$pdo) {
-    die('数据库连接失败');
-}
-
 // 登录处理
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'login') {
     $username = trim($_POST['username'] ?? '');
