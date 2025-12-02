@@ -331,11 +331,8 @@ if ($action === 'search') {
 
     $books = [];
     $total = 0;
-    $time_taken = 0;
 
     if (!empty($query)) {
-        // 记录开始时间
-        $start_time = microtime(true);
 
         // 构建搜索条件
         $search_conditions = build_search_conditions($type, $query, $format); // 传递format参数
@@ -366,9 +363,7 @@ if ($action === 'search') {
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 计算耗时
-        $end_time = microtime(true);
-        $time_taken = round($end_time - $start_time, 3);
+
     } else {
         // 没有搜索关键词时，显示最新的书籍（支持分页）
         $start_time = microtime(true);
@@ -387,8 +382,6 @@ if ($action === 'search') {
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $end_time = microtime(true);
-        $time_taken = round($end_time - $start_time, 3);
     }
 }
 
@@ -399,33 +392,190 @@ if ($action === 'search') {
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <?php 
+    $current_url = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    $canonical_url = $current_url;
+    // 移除page参数来生成canonical URL（如果page=1）
+    if (isset($_GET['page']) && $_GET['page'] == 1) {
+        $params = $_GET;
+        unset($params['page']);
+        $canonical_url = 'https://' . $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?');
+        if (!empty($params)) {
+            $canonical_url .= '?' . http_build_query($params);
+        }
+    }
+    ?>
+    
     <?php if ($action === 'detail' && $book): ?>
         <title><?php echo htmlspecialchars($book['title']); ?> - <?php echo htmlspecialchars($book['author']); ?> - 七秒电子书</title>
-        <meta name="description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160); ?>...">
-        <meta name="keywords" content="<?php echo htmlspecialchars($book['title']); ?>,<?php echo htmlspecialchars($book['author']); ?>,电子书下载,<?php echo htmlspecialchars($book['category'] ?? ''); ?>,<?php echo htmlspecialchars($book['file_format']); ?>电子书">
-        <meta property="og:title" content="<?php echo htmlspecialchars($book['title']); ?>">
-        <meta property="og:description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160); ?>...">
+        <meta name="description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($book['description'] ?: '暂无简介'), 0, 155)); ?>">
+        <meta name="keywords" content="<?php echo htmlspecialchars($book['title']); ?>,<?php echo htmlspecialchars($book['author']); ?>,电子书下载,<?php echo htmlspecialchars($book['category'] ?? ''); ?>,<?php echo htmlspecialchars($book['file_format']); ?>电子书,免费电子书">
+        <link rel="canonical" href="<?php echo htmlspecialchars($canonical_url); ?>">
+        
+        <!-- Open Graph / Facebook -->
         <meta property="og:type" content="book">
+        <meta property="og:url" content="<?php echo htmlspecialchars($current_url); ?>">
+        <meta property="og:title" content="<?php echo htmlspecialchars($book['title']); ?> - <?php echo htmlspecialchars($book['author']); ?>">
+        <meta property="og:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($book['description'] ?: '暂无简介'), 0, 200)); ?>">
         <meta property="og:image" content="<?php echo "https://" . $_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
-        <meta property="og:url" content="<?php echo 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
         <meta property="og:site_name" content="七秒电子书">
+        <meta property="og:locale" content="zh_CN">
+        
+        <!-- Twitter -->
         <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:title" content="<?php echo htmlspecialchars($book['title']); ?>">
-        <meta name="twitter:description" content="<?php echo substr($book['description'] ?: '暂无简介', 0, 160); ?>...">
+        <meta name="twitter:url" content="<?php echo htmlspecialchars($current_url); ?>">
+        <meta name="twitter:title" content="<?php echo htmlspecialchars($book['title']); ?> - <?php echo htmlspecialchars($book['author']); ?>">
+        <meta name="twitter:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($book['description'] ?: '暂无简介'), 0, 200)); ?>">
         <meta name="twitter:image" content="<?php echo "https://" . $_SERVER['HTTP_HOST'] . $book['cover_url']; ?>">
+        
+        <!-- Book Schema.org Structured Data -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Book",
+            "name": <?php echo json_encode($book['title'], JSON_UNESCAPED_UNICODE); ?>,
+            "author": {
+                "@type": "Person",
+                "name": <?php echo json_encode($book['author'], JSON_UNESCAPED_UNICODE); ?>
+            },
+            "description": <?php echo json_encode(mb_substr(strip_tags($book['description'] ?: '暂无简介'), 0, 500), JSON_UNESCAPED_UNICODE); ?>,
+            "image": "https://<?php echo $_SERVER['HTTP_HOST'] . $book['cover_url']; ?>",
+            "bookFormat": "<?php echo htmlspecialchars($book['file_format']); ?>",
+            "inLanguage": "zh-CN",
+            "publisher": {
+                "@type": "Organization",
+                "name": <?php echo json_encode($book['publisher'] ?? '七秒电子书', JSON_UNESCAPED_UNICODE); ?>
+            },
+            "datePublished": <?php echo json_encode($book['published_at'] ?? date('Y-m-d'), JSON_UNESCAPED_UNICODE); ?>,
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "CNY",
+                "availability": "https://schema.org/InStock"
+            }
+        }
+        </script>
+        
+        <!-- Breadcrumb Schema.org -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [{
+                "@type": "ListItem",
+                "position": 1,
+                "name": "首页",
+                "item": "https://<?php echo $_SERVER['HTTP_HOST']; ?>/"
+            }, {
+                "@type": "ListItem",
+                "position": 2,
+                "name": <?php echo json_encode($book['title'], JSON_UNESCAPED_UNICODE); ?>,
+                "item": "<?php echo htmlspecialchars($current_url); ?>"
+            }]
+        }
+        </script>
     <?php else: ?>
-        <title><?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书 - 地表最强电子书搜索引擎'; ?></title>
+        <title><?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果 - 七秒电子书' : '七秒电子书 - 地表最强电子书搜索引擎'; ?></title>
         <meta name="description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果，提供PDF、EPUB、MOBI等格式免费下载' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
         <meta name="keywords" content="电子书下载, 免费电子书, 电子书搜索, PDF电子书, EPUB下载, 七秒电子书, 小说电子书, 电子书资源站<?php echo $query ? ',' . htmlspecialchars($query) : ''; ?>">
-        <meta property="og:title" content="<?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果' : '七秒电子书 - 地表最强电子书搜索引擎'; ?>">
-        <meta property="og:description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果，提供PDF、EPUB、MOBI等格式免费下载' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
+        <link rel="canonical" href="<?php echo htmlspecialchars($canonical_url); ?>">
+        
+        <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website">
-        <meta property="og:url" content="<?php echo 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']; ?>">
+        <meta property="og:url" content="<?php echo htmlspecialchars($current_url); ?>">
+        <meta property="og:title" content="<?php echo $query ? htmlspecialchars($query) . ' - 电子书搜索结果 - 七秒电子书' : '七秒电子书 - 地表最强电子书搜索引擎'; ?>">
+        <meta property="og:description" content="<?php echo $query ? '搜索"' . htmlspecialchars($query) . '"的电子书结果，提供PDF、EPUB、MOBI等格式免费下载' : '七秒电子书提供海量免费电子书资源，支持PDF、EPUB、MOBI等格式一键搜索与高速下载，涵盖小说、教材、技术书籍等，打造便捷阅读体验。'; ?>">
         <meta property="og:site_name" content="七秒电子书">
+        <meta property="og:locale" content="zh_CN">
+        
+        <!-- Website Schema.org Structured Data -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "七秒电子书",
+            "url": "https://<?php echo $_SERVER['HTTP_HOST']; ?>/",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://<?php echo $_SERVER['HTTP_HOST']; ?>/?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+            }
+        }
+        </script>
+        
+        <?php if ($query): ?>
+        <!-- SearchResultsPage Schema.org -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "SearchResultsPage",
+            "url": "<?php echo htmlspecialchars($current_url); ?>",
+            "mainEntity": {
+                "@type": "ItemList",
+                "numberOfItems": <?php echo $total ?? 0; ?>,
+                "itemListElement": [
+                    <?php if (!empty($books)): ?>
+                    <?php foreach (array_slice($books, 0, 10) as $idx => $book_item): ?>
+                    {
+                        "@type": "ListItem",
+                        "position": <?php echo $idx + 1; ?>,
+                        "item": {
+                            "@type": "Book",
+                            "name": <?php echo json_encode($book_item['title'], JSON_UNESCAPED_UNICODE); ?>,
+                            "author": <?php echo json_encode($book_item['author'], JSON_UNESCAPED_UNICODE); ?>,
+                            "url": "https://<?php echo $_SERVER['HTTP_HOST']; ?>/?action=detail&id=<?php echo $book_item['id']; ?>"
+                        }
+                    }<?php echo $idx < min(9, count($books) - 1) ? ',' : ''; ?>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                ]
+            }
+        }
+        </script>
+        <?php endif; ?>
     <?php endif; ?>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* 移动端优化 */
+        @media (max-width: 640px) {
+            /* 确保触摸目标至少44x44px */
+            button, a[role="button"], input[type="submit"], input[type="button"] {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            /* 优化字体大小，避免缩放 */
+            body {
+                -webkit-text-size-adjust: 100%;
+                -moz-text-size-adjust: 100%;
+                -ms-text-size-adjust: 100%;
+                text-size-adjust: 100%;
+            }
+        }
+        /* 性能优化 */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        /* 平滑滚动 */
+        html {
+            scroll-behavior: smooth;
+        }
+        /* 焦点可见性 */
+        *:focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+    </style>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-S1VQ1GTE0R"></script>
     <script>
@@ -454,39 +604,39 @@ if ($action === 'search') {
 
 <body class="bg-gray-100 min-h-screen">
     <!-- 导航栏 -->
-    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="./">
-                        <div class="flex-shrink-0 flex items-center">
-
-                            <i class="fas fa-book text-2xl mr-2"></i>
-                            <span class="text-xl font-bold">七秒电子书</span>
-
-                        </div>
+    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg sticky top-0 z-50" role="navigation" aria-label="主导航">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+            <div class="flex justify-between items-center h-14 sm:h-16">
+                <div class="flex items-center flex-shrink-0">
+                    <a href="./" class="flex items-center focus:outline-none focus:ring-2 focus:ring-white rounded" aria-label="返回首页">
+                        <i class="fas fa-book text-xl sm:text-2xl mr-2" aria-hidden="true"></i>
+                        <span class="text-lg sm:text-xl font-bold">七秒电子书</span>
                     </a>
                 </div>
-                <div class="flex items-center">
-                    <div class="mr-4 text-sm">
-                        <?php if (is_logged_in()): ?>
-                            <a href="?action=profile" class="hover:underline">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <?php if (is_logged_in()): ?>
+                        <div class="hidden sm:flex items-center gap-2 text-xs sm:text-sm">
+                            <a href="?action=profile" class="hover:underline focus:outline-none focus:ring-2 focus:ring-white rounded px-1" aria-label="个人资料">
                                 <span>欢迎, <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong></span>
                             </a>
                             <?php if (get_user_role() === 'user'): ?>
-                                <span class="ml-2 text-xs bg-green-500 px-2 py-1 rounded">已下载: <?php echo get_user_download_count(); ?>/5</span>
+                                <span class="bg-green-500 px-2 py-1 rounded text-xs whitespace-nowrap">已下载: <?php echo get_user_download_count(); ?>/5</span>
                             <?php endif; ?>
-                            <?php if (is_admin()): ?>
-                                <a href="admin.php" class="ml-2 text-sm bg-purple-500 hover:bg-purple-600 px-3 py-1 rounded transition">
-                                    <i class="fas fa-cog mr-1"></i> 管理后台
-                                </a>
-                            <?php endif; ?>
-                            <a href="?logout=1" class="ml-3 text-sm bg-red-500 hover:bg-red-600 px-3 py-1 rounded transition">退出</a>
-                        <?php else: ?>
-                            <span>游客</span>
-                            <a href="?action=login" class="ml-3 text-sm bg-green-500 hover:bg-green-600 px-3 py-1 rounded transition">登录</a>
+                        </div>
+                        <?php if (is_admin()): ?>
+                            <a href="admin.php" class="bg-purple-500 hover:bg-purple-600 px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition focus:outline-none focus:ring-2 focus:ring-white whitespace-nowrap" aria-label="管理后台">
+                                <i class="fas fa-cog mr-1" aria-hidden="true"></i><span class="hidden sm:inline">管理后台</span>
+                            </a>
                         <?php endif; ?>
-                    </div>
+                        <a href="?logout=1" class="bg-red-500 hover:bg-red-600 px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition focus:outline-none focus:ring-2 focus:ring-white whitespace-nowrap" aria-label="退出登录">
+                            <i class="fas fa-sign-out-alt sm:mr-1" aria-hidden="true"></i><span class="hidden sm:inline">退出</span>
+                        </a>
+                    <?php else: ?>
+                        <span class="hidden sm:inline text-xs sm:text-sm">游客</span>
+                        <a href="?action=login" class="bg-green-500 hover:bg-green-600 px-3 sm:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-white whitespace-nowrap" aria-label="用户登录">
+                            <i class="fas fa-user sm:mr-1" aria-hidden="true"></i><span>登录</span>
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -828,133 +978,175 @@ if ($action === 'search') {
         </div>
     <?php elseif ($action === 'detail' && $book): ?>
         <!-- 详情页 -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="bg-white rounded-lg shadow-md overflow-hidden mb-8">
-                <div class="p-6">
-                    <div class="flex flex-col md:flex-row">
-                        <div class="md:w-1/3 mb-6 md:mb-0 md:pr-6">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+            <article class="bg-white rounded-lg shadow-md overflow-hidden mb-4 sm:mb-6 lg:mb-8" itemscope itemtype="https://schema.org/Book">
+                <div class="p-4 sm:p-6">
+                    <div class="flex flex-col md:flex-row gap-4 sm:gap-6">
+                        <div class="md:w-1/3 flex-shrink-0 mx-auto md:mx-0 max-w-xs md:max-w-none">
                             <?php if ($book['cover_url']): ?>
-                                <div class="bg-gray-100 flex items-center justify-center rounded-lg">
-                                    <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover rounded-lg">
+                                <div class="bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden" itemprop="image" itemscope itemtype="https://schema.org/ImageObject">
+                                    <img 
+                                        src="<?php echo htmlspecialchars($book['cover_url']); ?>" 
+                                        alt="<?php echo htmlspecialchars($book['title']); ?>" 
+                                        class="w-full h-auto object-cover rounded-lg"
+                                        loading="lazy"
+                                        itemprop="url">
+                                    <meta itemprop="width" content="300">
+                                    <meta itemprop="height" content="450">
                                 </div>
                             <?php else: ?>
                                 <div class="bg-gray-100 flex items-center justify-center rounded-lg aspect-[2/3]">
                                     <div class="text-gray-400 text-center p-4">
-                                        <i class="fas fa-book text-6xl mb-4"></i>
-                                        <div class="text-xl"><?php echo $book['title']; ?></div>
+                                        <i class="fas fa-book text-5xl sm:text-6xl mb-4" aria-hidden="true"></i>
+                                        <div class="text-lg sm:text-xl"><?php echo htmlspecialchars($book['title']); ?></div>
                                     </div>
                                 </div>
                             <?php endif; ?>
                         </div>
-                        <div class="md:w-2/3">
-                            <h1 class="text-3xl font-bold text-gray-800 mb-4"><?php echo htmlspecialchars($book['title']); ?></h1>
-                            <div class="flex items-center mb-4">
-                                <i class="fas fa-user text-gray-500 mr-2"></i>
-                                <span class="text-lg text-gray-600"><?php echo format_authors($book['author']); ?></span>
+                        <div class="md:w-2/3 flex-1">
+                            <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-3 sm:mb-4" itemprop="name"><?php echo htmlspecialchars($book['title']); ?></h1>
+                            <div class="flex flex-wrap items-center mb-3 sm:mb-4">
+                                <i class="fas fa-user text-gray-500 mr-2 text-sm sm:text-base" aria-hidden="true"></i>
+                                <span class="text-base sm:text-lg text-gray-600" itemprop="author" itemscope itemtype="https://schema.org/Person">
+                                    <span itemprop="name"><?php echo format_authors($book['author']); ?></span>
+                                </span>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-4 mb-6">
-                                <div class="bg-blue-50 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-500">文件类型</div>
-                                    <div class="font-semibold"><?php echo htmlspecialchars($book['file_format']); ?></div>
+                            <div class="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                                <div class="bg-blue-50 p-2.5 sm:p-3 rounded-lg">
+                                    <div class="text-xs sm:text-sm text-gray-500 mb-1">文件类型</div>
+                                    <div class="font-semibold text-sm sm:text-base"><?php echo htmlspecialchars($book['file_format']); ?></div>
                                 </div>
-                                <div class="bg-green-50 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-500">文件大小</div>
-                                    <div class="font-semibold"><?php echo format_file_size($book['file_size']); ?></div>
+                                <div class="bg-green-50 p-2.5 sm:p-3 rounded-lg">
+                                    <div class="text-xs sm:text-sm text-gray-500 mb-1">文件大小</div>
+                                    <div class="font-semibold text-sm sm:text-base"><?php echo format_file_size($book['file_size']); ?></div>
                                 </div>
-                                <div class="bg-yellow-50 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-500">内容语言</div>
-                                    <div class="font-semibold"><?php echo $book['languages'] ?: "简体中文"; ?></div>
+                                <div class="bg-yellow-50 p-2.5 sm:p-3 rounded-lg">
+                                    <div class="text-xs sm:text-sm text-gray-500 mb-1">内容语言</div>
+                                    <div class="font-semibold text-sm sm:text-base"><?php echo htmlspecialchars($book['languages'] ?: "简体中文"); ?></div>
                                 </div>
-                                <div class="bg-purple-50 p-3 rounded-lg">
-                                    <div class="text-sm text-gray-500">更新时间</div>
-                                    <div class="font-semibold"><?php echo substr($book['updated_at'], 0, 10); ?></div>
+                                <div class="bg-purple-50 p-2.5 sm:p-3 rounded-lg">
+                                    <div class="text-xs sm:text-sm text-gray-500 mb-1">更新时间</div>
+                                    <div class="font-semibold text-sm sm:text-base"><?php echo substr($book['updated_at'], 0, 10); ?></div>
                                 </div>
-                                
                             </div>
 
-                            <div class="mb-6">
-                                <h2 class="text-xl font-semibold text-gray-800 mb-2">简介</h2>
-                                <p class="text-gray-600"><?php echo htmlspecialchars($book['description'] ?? "暂无资料"); ?></p>
+                            <div class="mb-4 sm:mb-6">
+                                <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-2">简介</h2>
+                                <p class="text-sm sm:text-base text-gray-600 leading-relaxed" itemprop="description"><?php echo nl2br(htmlspecialchars($book['description'] ?? "暂无资料")); ?></p>
                             </div>
 
-                            <div class="mb-6">
-                                <h2 class="text-xl font-semibold text-gray-800 mb-2">标签</h2>
+                            <div class="mb-4 sm:mb-6">
+                                <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-2">标签</h2>
                                 <div class="flex flex-wrap gap-2">
                                     <?php if ($book['tags']): ?>
                                         <?php foreach (explode(',', $book['tags']) as $tag): ?>
-                                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"><?php echo htmlspecialchars(trim($tag)); ?></span>
+                                            <a href="?q=<?php echo urlencode(trim($tag)); ?>&type=all" class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm transition-colors">
+                                                <?php echo htmlspecialchars(trim($tag)); ?>
+                                            </a>
                                         <?php endforeach; ?>
                                     <?php else: ?>
-                                        <span class="text-gray-500">暂无标签</span>
+                                        <span class="text-sm sm:text-base text-gray-500">暂无标签</span>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                            <?php if (is_logged_in()): ?>
-                                <?php if (check_download_limit(get_user_id())): ?>
-                                    <a href="?action=download&id=<?php echo $book['id']; ?>" class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-                                        <i class="fas fa-download mr-2"></i> 下载电子书
-                                    </a>
+                            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                <?php if (is_logged_in()): ?>
+                                    <?php if (check_download_limit(get_user_id())): ?>
+                                        <a href="?action=download&id=<?php echo $book['id']; ?>" 
+                                           class="inline-flex items-center justify-center bg-green-600 hover:bg-green-700 active:bg-green-800 text-white px-5 sm:px-6 py-3 rounded-lg font-semibold transition-colors min-h-[44px] focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" 
+                                           aria-label="下载电子书">
+                                            <i class="fas fa-download mr-2" aria-hidden="true"></i> 
+                                            <span>下载电子书</span>
+                                        </a>
+                                    <?php else: ?>
+                                        <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base">
+                                            <i class="fas fa-exclamation-circle mr-2" aria-hidden="true"></i> 
+                                            今日下载次数已达上限（5次），请明天再试
+                                        </div>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
-                                        <i class="fas fa-exclamation-circle mr-2"></i> 今日下载次数已达上限（5次），请明天再试
-                                    </div>
+                                    <a href="?action=login" 
+                                       class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-5 sm:px-6 py-3 rounded-lg font-semibold transition-colors min-h-[44px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" 
+                                       aria-label="登录后下载">
+                                        <i class="fas fa-download mr-2" aria-hidden="true"></i> 
+                                        <span>登录后下载</span>
+                                    </a>
                                 <?php endif; ?>
-                            <?php else: ?>
-                                <a href="?action=login" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-                                    <i class="fas fa-download mr-2"></i> 登录后下载
-                                </a>
-                            <?php endif; ?>
 
-                            <a href="?" class="ml-4 inline-block bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-                                <i class="fas fa-arrow-left mr-2"></i> 返回搜索
-                            </a>
+                                <a href="?" 
+                                   class="inline-flex items-center justify-center bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white px-5 sm:px-6 py-3 rounded-lg font-semibold transition-colors min-h-[44px] focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2" 
+                                   aria-label="返回搜索">
+                                    <i class="fas fa-arrow-left mr-2" aria-hidden="true"></i> 
+                                    <span>返回搜索</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">相关推荐</h2>
-                <!-- 布局切换按钮 -->
-                <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                    <button onclick="switchBookLayout('grid', 'relatedBooksList')" id="relatedGridBtn" class="px-3 py-1 rounded transition <?php echo $book_layout === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>">
-                        <i class="fas fa-th"></i> 方格
-                    </button>
-                    <button onclick="switchBookLayout('list', 'relatedBooksList')" id="relatedListBtn" class="px-3 py-1 rounded transition <?php echo $book_layout === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>">
-                        <i class="fas fa-list"></i> 列表
-                    </button>
+                
+            </article>
+
+            <div class="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-4 sm:mb-6">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">相关推荐</h2>
+                    <!-- 布局切换按钮 -->
+                    <div class="flex items-center gap-1 sm:gap-2 bg-gray-100 rounded-lg p-0.5 sm:p-1" role="group" aria-label="切换布局">
+                        <button 
+                            onclick="switchBookLayout('grid', 'relatedBooksList')" 
+                            id="relatedGridBtn" 
+                            class="px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition min-h-[36px] sm:min-h-[40px] focus:outline-none focus:ring-2 focus:ring-blue-500 <?php echo $book_layout === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>" 
+                            aria-label="网格布局"
+                            aria-pressed="<?php echo $book_layout === 'grid' ? 'true' : 'false'; ?>">
+                            <i class="fas fa-th mr-1" aria-hidden="true"></i><span class="hidden xs:inline">方格</span>
+                        </button>
+                        <button 
+                            onclick="switchBookLayout('list', 'relatedBooksList')" 
+                            id="relatedListBtn" 
+                            class="px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition min-h-[36px] sm:min-h-[40px] focus:outline-none focus:ring-2 focus:ring-blue-500 <?php echo $book_layout === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>" 
+                            aria-label="列表布局"
+                            aria-pressed="<?php echo $book_layout === 'list' ? 'true' : 'false'; ?>">
+                            <i class="fas fa-list mr-1" aria-hidden="true"></i><span class="hidden xs:inline">列表</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <!-- 书籍列表 -->
             <?php echo render_books_list($related_books, $book_layout, $query ?? '', 'relatedBooksList'); ?>
+           
         </div>
     <?php else: ?>
         <!-- 搜索结果页 -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
             <!-- 搜索区域 -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <form method="GET" class="space-y-4">
-                    <div class="flex flex-col md:flex-row gap-4">
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+                <form method="GET" class="space-y-3 sm:space-y-4" role="search" aria-label="搜索电子书">
+                    <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         <div class="flex-grow">
+                            <label for="search-input" class="sr-only">搜索关键词</label>
                             <input
-                                type="text"
+                                type="search"
+                                id="search-input"
                                 name="q"
                                 placeholder="输入关键词搜索图书..."
                                 value="<?php echo htmlspecialchars($query ?? ''); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg">
+                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-lg"
+                                autocomplete="off"
+                                aria-label="搜索关键词">
                         </div>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center">
-                            <i class="fas fa-search mr-2"></i> 搜索
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition-colors flex items-center justify-center min-h-[44px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" aria-label="执行搜索">
+                            <i class="fas fa-search mr-2" aria-hidden="true"></i> 
+                            <span>搜索</span>
                         </button>
                     </div>
 
-                    <div class="flex flex-wrap gap-4 items-center">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">搜索范围</label>
-                            <select name="type" class="border border-gray-300 rounded-lg px-3 py-2">
+                    <div class="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
+                        <div class="flex-1 min-w-[140px]">
+                            <label for="search-type" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">搜索范围</label>
+                            <select id="search-type" name="type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px]">
                                 <option value="all" <?php echo ($type ?? 'all') === 'all' ? 'selected' : ''; ?>>全部字段</option>
                                 <option value="title" <?php echo ($type ?? 'all') === 'title' ? 'selected' : ''; ?>>仅书名</option>
                                 <option value="author" <?php echo ($type ?? 'all') === 'author' ? 'selected' : ''; ?>>仅作者</option>
@@ -963,9 +1155,9 @@ if ($action === 'search') {
                         </div>
 
                         <!-- 添加文件类型筛选 -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">文件类型</label>
-                            <select name="format" class="border border-gray-300 rounded-lg px-3 py-2">
+                        <div class="flex-1 min-w-[140px]">
+                            <label for="file-format" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">文件类型</label>
+                            <select id="file-format" name="format" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px]">
                                 <option value="">所有格式</option>
                                 <?php foreach (SUPPORTED_EXTS as $ext): ?>
                                     <option value="<?php echo $ext; ?>" <?php echo (($_GET['format'] ?? '') === $ext) ? 'selected' : ''; ?>>
@@ -977,54 +1169,51 @@ if ($action === 'search') {
                     </div>
                 </form>
 
-                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p class="text-sm text-blue-800"><i class="fas fa-lightbulb mr-2"></i> <strong>搜索技巧:</strong> 支持多关键词搜索，用空格分隔，如搜索"计算机 系统"</p>
+                <div class="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-xs sm:text-sm text-blue-800">
+                        <i class="fas fa-lightbulb mr-1.5" aria-hidden="true"></i> 
+                        <strong>搜索技巧:</strong> 支持多关键词搜索，用空格分隔，如搜索"计算机 系统"
+                    </p>
                 </div>
             </div>
 
-            <!-- 搜索统计 -->
-            <?php if ($query): ?>
-                <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-                    <div class="flex flex-wrap justify-between items-center">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-800">搜索结果</h2>
-                            <p class="text-gray-600">找到 <span class="font-bold text-blue-600"><?php echo $total ?? 0; ?></span> 条结果</p>
-                        </div>
-                        <div class="text-sm text-gray-500">
-                            搜索耗时: <?php echo $time_taken ?? 0; ?>秒
-                        </div>
-                    </div>
-                </div>
-
-            <?php endif; ?>
+     
 
             <!-- 搜索结果 -->
             <div id="resultsContainer">
-                <?php // if (empty($query)): 
-                ?>
-                <!-- <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">最新图书</h2>
-                    <p class="text-gray-600">显示最新 <span class="font-bold text-blue-600">100</span> 本图书</p>
-                </div> -->
                 <?php if (empty($books ?? [])): ?>
-                    <div class="text-center py-20">
-                        <i class="fas fa-book text-6xl text-gray-300 mb-4"></i>
-                        <h3 class="text-xl font-semibold text-gray-600 mb-2">未找到相关书籍</h3>
-                        <p class="text-gray-500">请尝试使用其他关键词搜索</p>
+                    <div class="text-center py-12 sm:py-20">
+                        <i class="fas fa-book text-5xl sm:text-6xl text-gray-300 mb-4" aria-hidden="true"></i>
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-600 mb-2">未找到相关书籍</h3>
+                        <p class="text-sm sm:text-base text-gray-500">请尝试使用其他关键词搜索</p>
                     </div>
                 <?php else: ?>
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800"><?php echo empty($query) ? '最新图书' : '搜索结果'; ?></h2>
-                        <div class="flex items-center gap-4">
-                            <p class="text-gray-600">找到 <span class="font-bold text-blue-600"><?php echo $total ?? 0; ?></span> 条结果</p>
-                            <!-- 布局切换按钮 -->
-                            <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                                <button onclick="switchBookLayout('grid', 'searchBooksList')" id="gridBtn" class="px-3 py-1 rounded transition <?php echo $book_layout === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>">
-                                    <i class="fas fa-th"></i> 方格
-                                </button>
-                                <button onclick="switchBookLayout('list', 'searchBooksList')" id="listBtn" class="px-3 py-1 rounded transition <?php echo $book_layout === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>">
-                                    <i class="fas fa-list"></i> 列表
-                                </button>
+                    <div class="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-4 sm:mb-6">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                            <h2 class="text-xl sm:text-2xl font-bold text-gray-800"><?php echo empty($query) ? '最新图书' : '搜索结果'; ?></h2>
+                            <div class="flex items-center justify-between sm:justify-end gap-3">
+                                <p class="text-sm sm:text-base text-gray-600 hidden sm:block">
+                                    找到 <span class="font-bold text-blue-600"><?php echo number_format($total ?? 0); ?></span> 条结果
+                                </p>
+                                <!-- 布局切换按钮 -->
+                                <div class="flex items-center gap-1 sm:gap-2 bg-gray-100 rounded-lg p-0.5 sm:p-1" role="group" aria-label="切换布局">
+                                    <button 
+                                        onclick="switchBookLayout('grid', 'searchBooksList')" 
+                                        id="gridBtn" 
+                                        class="px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition min-h-[36px] sm:min-h-[40px] focus:outline-none focus:ring-2 focus:ring-blue-500 <?php echo $book_layout === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>" 
+                                        aria-label="网格布局"
+                                        aria-pressed="<?php echo $book_layout === 'grid' ? 'true' : 'false'; ?>">
+                                        <i class="fas fa-th mr-1" aria-hidden="true"></i><span class="hidden xs:inline">方格</span>
+                                    </button>
+                                    <button 
+                                        onclick="switchBookLayout('list', 'searchBooksList')" 
+                                        id="listBtn" 
+                                        class="px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition min-h-[36px] sm:min-h-[40px] focus:outline-none focus:ring-2 focus:ring-blue-500 <?php echo $book_layout === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>" 
+                                        aria-label="列表布局"
+                                        aria-pressed="<?php echo $book_layout === 'list' ? 'true' : 'false'; ?>">
+                                        <i class="fas fa-list mr-1" aria-hidden="true"></i><span class="hidden xs:inline">列表</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
