@@ -13,10 +13,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
         if ($user) {
             set_user_session($user);
-            header('Location: ' . $_SERVER['PHP_SELF'] . '?' . http_build_query($_GET));
+            header('Location: ' . $_SERVER['PHP_SELF']);
             exit;
         } else {
             $login_error = '用户名或密码错误';
+            $action = 'login'; // 保持显示登录页面
         }
     }
 }
@@ -33,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt->execute([$username]);
         if ($stmt->fetch()) {
             $register_error = '用户名已存在';
+            $action = 'register'; // 保持显示注册页面
         } else {
             // 插入新用户
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
@@ -51,12 +53,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 }
 
                 $register_success = '注册成功，请登录';
+                $action = 'login'; // 显示登录页面
             } else {
                 $register_error = '注册失败';
+                $action = 'register'; // 保持显示注册页面
             }
         }
     } else {
         $register_error = '请填写完整信息';
+        $action = 'register'; // 保持显示注册页面
     }
 }
 
@@ -114,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         $forgot_password_error = '请输入邮箱地址。';
     }
+    $action = 'forgot_password'; // 保持显示忘记密码页面
 }
 
 // 显示重置密码表单
@@ -182,11 +188,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         $reset_password_error = '请填写所有必填字段。';
     }
+    $action = 'reset_password'; // 保持显示重置密码页面
 }
 
-// 获取当前操作
-$action = $_GET['action'] ?? 'search';
+// 获取当前操作（如果之前没有设置，则从GET获取）
+if (!isset($action)) {
+    $action = $_GET['action'] ?? 'search';
+}
 $book_id = $_GET['id'] ?? null;
+
+// 获取用户布局偏好（从 Cookie 读取，默认为 grid）
+$book_layout = $_COOKIE['book_layout'] ?? 'grid';
 
 // 获取电子书详情
 $book = null;
@@ -478,7 +490,7 @@ function build_page_url($query, $type, $new_page)
                             <a href="?logout=1" class="ml-3 text-sm bg-red-500 hover:bg-red-600 px-3 py-1 rounded transition">退出</a>
                         <?php else: ?>
                             <span>游客</span>
-                            <button onclick="openAuthModal('login')" class="ml-3 text-sm bg-green-500 hover:bg-green-600 px-3 py-1 rounded transition">登录</button>
+                            <a href="?action=login" class="ml-3 text-sm bg-green-500 hover:bg-green-600 px-3 py-1 rounded transition">登录</a>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -486,7 +498,210 @@ function build_page_url($query, $type, $new_page)
         </div>
     </nav>
 
-    <?php if (isset($_GET['action']) && $_GET['action'] === 'profile' && is_logged_in()): ?>
+    <?php if ($action === 'login'): ?>
+        <!-- 登录页面 -->
+        <div class="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 class="text-2xl font-bold text-gray-800">用户登录</h1>
+                        <a href="./" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-arrow-left mr-1"></i> 返回首页
+                        </a>
+                    </div>
+
+                    <?php if (isset($login_error)): ?>
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+                            <?php echo htmlspecialchars($login_error); ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" class="space-y-4">
+                        <input type="hidden" name="action" value="login">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="username">用户名</label>
+                            <input type="text" name="username" id="username" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="password">密码</label>
+                            <input type="password" name="password" id="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+                            登录
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <a href="?action=forgot_password" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            忘记密码？
+                        </a>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <p class="text-gray-600">
+                            还没有账号？
+                            <a href="?action=register" class="text-blue-600 hover:text-blue-800 font-medium">
+                                立即注册
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($action === 'register'): ?>
+        <!-- 注册页面 -->
+        <div class="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 class="text-2xl font-bold text-gray-800">用户注册</h1>
+                        <a href="./" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-arrow-left mr-1"></i> 返回首页
+                        </a>
+                    </div>
+
+                    <?php if (isset($register_error)): ?>
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+                            <?php echo htmlspecialchars($register_error); ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (isset($register_success)): ?>
+                        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+                            <?php echo htmlspecialchars($register_success); ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" class="space-y-4">
+                        <input type="hidden" name="action" value="register">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="reg_username">用户名</label>
+                            <input type="text" name="reg_username" id="reg_username" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="reg_email">邮箱</label>
+                            <input type="email" name="reg_email" id="reg_email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="reg_password">密码</label>
+                            <input type="password" name="reg_password" id="reg_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+                            注册
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <p class="text-gray-600">已有账号？</p>
+                        <a href="?action=login" class="text-blue-600 hover:text-blue-800 font-medium">
+                            立即登录
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($action === 'forgot_password'): ?>
+        <!-- 忘记密码页面 -->
+        <div class="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 class="text-2xl font-bold text-gray-800">忘记密码</h1>
+                        <a href="./" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-arrow-left mr-1"></i> 返回首页
+                        </a>
+                    </div>
+
+                    <?php if (isset($forgot_password_error)): ?>
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+                            <?php echo htmlspecialchars($forgot_password_error); ?>
+                        </div>
+                    <?php elseif (isset($forgot_password_message)): ?>
+                        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+                            <?php echo htmlspecialchars($forgot_password_message); ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" class="space-y-4">
+                        <input type="hidden" name="action" value="forgot_password">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="forgot_email">邮箱地址</label>
+                            <input type="email" name="email" id="forgot_email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+                            发送重置链接
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <a href="?action=login" class="text-blue-600 hover:text-blue-800 font-medium">
+                            返回登录
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($action === 'reset_password'): ?>
+        <!-- 重置密码页面 -->
+        <div class="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 class="text-2xl font-bold text-gray-800">重置密码</h1>
+                        <a href="./" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-arrow-left mr-1"></i> 返回首页
+                        </a>
+                    </div>
+
+                    <?php if (isset($reset_password_error)): ?>
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+                            <?php echo htmlspecialchars($reset_password_error); ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (isset($reset_password_success)): ?>
+                        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+                            <?php echo htmlspecialchars($reset_password_success); ?>
+                        </div>
+                        <div class="text-center">
+                            <a href="?action=login" class="text-blue-600 hover:text-blue-800 font-medium">前往登录</a>
+                        </div>
+                    <?php elseif (isset($reset_token) && isset($reset_email)): ?>
+                        <form method="POST" class="space-y-4">
+                            <input type="hidden" name="action" value="reset_password">
+                            <input type="hidden" name="token" value="<?php echo htmlspecialchars($reset_token); ?>">
+
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">邮箱</label>
+                                <input type="email" value="<?php echo htmlspecialchars($reset_email); ?>" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="password">新密码</label>
+                                <input type="password" name="password" id="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="confirm_password">确认新密码</label>
+                                <input type="password" name="confirm_password" id="confirm_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            </div>
+
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+                                重置密码
+                            </button>
+                        </form>
+                    <?php else: ?>
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+                            无效的重置请求
+                        </div>
+                        <div class="text-center">
+                            <a href="./" class="text-blue-600 hover:text-blue-800 font-medium">返回首页</a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    <?php elseif (isset($_GET['action']) && $_GET['action'] === 'profile' && is_logged_in()): ?>
         <!-- 个人资料页面 -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="bg-white rounded-lg shadow-md overflow-hidden">
@@ -693,9 +908,9 @@ function build_page_url($query, $type, $new_page)
                                     </div>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <button onclick="openAuthModal('login')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                                <a href="?action=login" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
                                     <i class="fas fa-download mr-2"></i> 登录后下载
-                                </button>
+                                </a>
                             <?php endif; ?>
 
                             <a href="?" class="ml-4 inline-block bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition">
@@ -708,46 +923,19 @@ function build_page_url($query, $type, $new_page)
 
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-gray-800">相关推荐</h2>
+                <!-- 布局切换按钮 -->
+                <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                    <button onclick="switchBookLayout('grid', 'relatedBooksList')" id="relatedGridBtn" class="px-3 py-1 rounded transition <?php echo $book_layout === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>">
+                        <i class="fas fa-th"></i> 方格
+                    </button>
+                    <button onclick="switchBookLayout('list', 'relatedBooksList')" id="relatedListBtn" class="px-3 py-1 rounded transition <?php echo $book_layout === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>">
+                        <i class="fas fa-list"></i> 列表
+                    </button>
+                </div>
             </div>
 
-            <!-- 书籍网格 -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
-                <?php foreach ($related_books as $book): ?>
-                    <a href="?action=detail&id=<?php echo $book['id']; ?>">
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                            <div class="bg-gray-100 flex items-center justify-center aspect-[2/3]">
-                                <?php if ($book['cover_url']): ?>
-                                    <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
-                                <?php else: ?>
-                                    <div class="text-gray-400 text-center p-4">
-                                        <i class="fas fa-book text-4xl mb-2"></i>
-                                        <div class="text-sm"><?php echo $book['title']; ?></div>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                            <div class="p-4">
-                                <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query ?? ''); ?></h3>
-                                <?php if ($book['author']): ?>
-                                    <p class="text-gray-600 mb-2 flex items-center">
-                                        <i class="fas fa-user text-sm mr-2"></i>
-                                        <?php echo empty($query) ? $book['author'] : highlight_matches($book['author'], $query); ?>
-                                    </p>
-                                <?php endif; ?>
-                                <!-- 添加文件格式和大小信息 -->
-                                <div class="mt-2 flex justify-between items-center text-xs">
-                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded"><?php echo htmlspecialchars($book['file_format']); ?></span>
-                                    <span class="text-gray-500"><?php echo format_file_size($book['file_size']); ?></span>
-                                </div>
-                                <?php if (isset($book['relevance_score']) && !empty($query)): ?>
-                                    <div class="mt-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded inline-block">
-                                        相关度: <?php echo round($book['relevance_score'], 1); ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </a>
-                <?php endforeach; ?>
-            </div>
+            <!-- 书籍列表 -->
+            <?php echo render_books_list($related_books, $book_layout, $query ?? '', 'relatedBooksList'); ?>
         </div>
     <?php else: ?>
         <!-- 搜索结果页 -->
@@ -814,23 +1002,6 @@ function build_page_url($query, $type, $new_page)
                     </div>
                 </div>
 
-                <?php if (needs_login_for_more_results($total ?? 0, $page ?? 1, $limit)): ?>
-                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm text-yellow-700">
-                                    搜索结果较多，当前仅显示第一页。登录后可查看全部结果。
-                                    <button onclick="openAuthModal('login')" class="ml-2 text-blue-600 hover:text-blue-800 font-medium">
-                                        点击登录
-                                    </button>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                <?php endif; ?>
             <?php endif; ?>
 
             <!-- 搜索结果 -->
@@ -850,46 +1021,21 @@ function build_page_url($query, $type, $new_page)
                 <?php else: ?>
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-gray-800"><?php echo empty($query) ? '最新图书' : '搜索结果'; ?></h2>
-                        <p class="text-gray-600">找到 <span class="font-bold text-blue-600"><?php echo $total ?? 0; ?></span> 条结果</p>
+                        <div class="flex items-center gap-4">
+                            <p class="text-gray-600">找到 <span class="font-bold text-blue-600"><?php echo $total ?? 0; ?></span> 条结果</p>
+                            <!-- 布局切换按钮 -->
+                            <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                                <button onclick="switchBookLayout('grid', 'searchBooksList')" id="gridBtn" class="px-3 py-1 rounded transition <?php echo $book_layout === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>">
+                                    <i class="fas fa-th"></i> 方格
+                                </button>
+                                <button onclick="switchBookLayout('list', 'searchBooksList')" id="listBtn" class="px-3 py-1 rounded transition <?php echo $book_layout === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>">
+                                    <i class="fas fa-list"></i> 列表
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <!-- 书籍网格 -->
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
-                        <?php foreach ($books as $book): ?>
-                            <a href="?action=detail&id=<?php echo $book['id']; ?>">
-                                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                                    <div class="bg-gray-100 flex items-center justify-center aspect-[2/3]">
-                                        <?php if ($book['cover_url']): ?>
-                                            <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
-                                        <?php else: ?>
-                                            <div class="text-gray-400 text-center p-4">
-                                                <i class="fas fa-book text-4xl mb-2"></i>
-                                                <div class="text-sm"><?php echo $book['title']; ?></div>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="p-4">
-                                        <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query ?? ''); ?></h3>
-                                        <?php if ($book['author']): ?>
-                                            <p class="text-gray-600 mb-2 line-clamp-2">
-                                                <i class="fas fa-user text-sm mr-2"></i>
-                                                <?php echo empty($query) ? $book['author'] : highlight_matches($book['author'], $query); ?>
-                                            </p>
-                                        <?php endif; ?>
-                                        <!-- 添加文件格式和大小信息 -->
-                                        <div class="mt-2 flex justify-between items-center text-xs">
-                                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded"><?php echo htmlspecialchars($book['file_format']); ?></span>
-                                            <span class="text-gray-500"><?php echo format_file_size($book['file_size']); ?></span>
-                                        </div>
-                                        <?php if (isset($book['relevance_score']) && !empty($query)): ?>
-                                            <div class="mt-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded inline-block">
-                                                相关度: <?php echo round($book['relevance_score'], 1); ?>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
+                    <!-- 书籍列表 -->
+                    <?php echo render_books_list($books, $book_layout, $query ?? '', 'searchBooksList'); ?>
 
                     <!-- 分页 -->
                     <?php if ((!empty($query) || empty($query)) && ($total ?? 0) > $limit): ?>
@@ -907,33 +1053,15 @@ function build_page_url($query, $type, $new_page)
                             <?php endif; ?>
 
                             <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
-                                <?php if (is_logged_in() || $i == 1): ?>
-                                    <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600 border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
-                                        <?php echo $i; ?>
-                                    </a>
-                                <?php else: ?>
-                                    <span class="px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed">...</span>
-                                    <?php break; ?>
-                                <?php endif; ?>
+                                <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $i); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i == $page ? 'text-white bg-blue-600 border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'; ?> rounded-lg">
+                                    <?php echo $i; ?>
+                                </a>
                             <?php endfor; ?>
 
-                            <?php if ($page < $total_pages && is_logged_in()): ?>
+                            <?php if ($page < $total_pages): ?>
                                 <a href="<?php echo build_page_url($query ?? '', $type ?? 'all', $page + 1); ?>" class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
                                     下一页 <i class="fas fa-chevron-right ml-1"></i>
                                 </a>
-                            <?php elseif ($page < $total_pages && !is_logged_in()): ?>
-                                <span class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed">
-                                    下一页 <i class="fas fa-chevron-right ml-1"></i>
-                                </span>
-                                <div class="mt-4 text-center w-full">
-                                    <div class="inline-flex items-center bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                                        <i class="fas fa-lock text-yellow-500 mr-2"></i>
-                                        <span class="text-yellow-700">需要登录查看更多结果</span>
-                                        <button onclick="openAuthModal('login')" class="ml-3 text-blue-600 hover:text-blue-800 font-medium">
-                                            登录
-                                        </button>
-                                    </div>
-                                </div>
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
@@ -942,251 +1070,33 @@ function build_page_url($query, $type, $new_page)
         </div>
     <?php endif; ?>
 
-    <!-- 添加重置密码表单 -->
-    <?php if (isset($_GET['action']) && $_GET['action'] === 'reset_password'): ?>
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-                <div class="p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold">重置密码</h3>
-                        <a href="./" class="text-gray-500 hover:text-gray-700">
-                            <i class="fas fa-times"></i>
-                        </a>
-                    </div>
-
-                    <?php if (isset($reset_password_error)): ?>
-                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-                            <?php echo htmlspecialchars($reset_password_error); ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <?php if (isset($reset_password_success)): ?>
-                        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
-                            <?php echo htmlspecialchars($reset_password_success); ?>
-                        </div>
-                        <div class="text-center">
-                            <a href="./" class="text-blue-600 hover:text-blue-800 font-medium">返回首页</a>
-                        </div>
-                    <?php elseif (isset($reset_token) && isset($reset_email)): ?>
-                        <form method="POST" class="space-y-4">
-                            <input type="hidden" name="action" value="reset_password">
-                            <input type="hidden" name="token" value="<?php echo htmlspecialchars($reset_token); ?>">
-
-                            <div class="mb-4">
-                                <label class="block text-gray-700 text-sm font-bold mb-2">邮箱</label>
-                                <input type="email" value="<?php echo htmlspecialchars($reset_email); ?>" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
-                            </div>
-
-                            <div class="mb-4">
-                                <label class="block text-gray-700 text-sm font-bold mb-2" for="password">新密码</label>
-                                <input type="password" name="password" id="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                            </div>
-
-                            <div class="mb-4">
-                                <label class="block text-gray-700 text-sm font-bold mb-2" for="confirm_password">确认新密码</label>
-                                <input type="password" name="confirm_password" id="confirm_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                            </div>
-
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
-                                重置密码
-                            </button>
-                        </form>
-                    <?php else: ?>
-                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-                            无效的重置请求
-                        </div>
-                        <div class="text-center">
-                            <a href="./" class="text-blue-600 hover:text-blue-800 font-medium">返回首页</a>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
-
-    <!-- 登录/注册模态框 -->
-    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold" id="authModalTitle">用户登录</h3>
-                    <button onclick="closeAuthModal()" class="text-gray-500 hover:text-gray-700">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-
-                <!-- 登录表单 -->
-                <div id="loginForm" class="space-y-4">
-                    <?php if (isset($login_error)): ?>
-                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                            <?php echo htmlspecialchars($login_error); ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST">
-                        <input type="hidden" name="action" value="login">
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="username">用户名</label>
-                            <input type="text" name="username" id="username" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="password">密码</label>
-                            <input type="password" name="password" id="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
-                            登录
-                        </button>
-                    </form>
-
-                    <div class="text-center mt-4">
-                        <button onclick="showForgotPasswordForm()" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                            忘记密码？
-                        </button>
-                    </div>
-
-                    <div class="text-center mt-4">
-                        <p class="text-gray-600">
-                            还没有账号？
-                            <button onclick="switchToRegister()" class="text-blue-600 hover:text-blue-800 font-medium">
-                                立即注册
-                            </button>
-                        </p>
-
-                    </div>
-                </div>
-
-                <!-- 忘记密码表单 -->
-                <div id="forgotPasswordForm" class="space-y-4 hidden">
-                    <?php if (isset($forgot_password_error)): ?>
-                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                            <?php echo htmlspecialchars($forgot_password_error); ?>
-                        </div>
-                    <?php elseif (isset($forgot_password_message)): ?>
-                        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-                            <?php echo htmlspecialchars($forgot_password_message); ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST">
-                        <input type="hidden" name="action" value="forgot_password">
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="forgot_email">邮箱地址</label>
-                            <input type="email" name="email" id="forgot_email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition">
-                            发送重置链接
-                        </button>
-                    </form>
-
-                    <div class="text-center mt-4">
-                        <button onclick="switchToLogin()" class="text-blue-600 hover:text-blue-800 font-medium">
-                            返回登录
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 注册表单 -->
-                <div id="registerForm" class="space-y-4 hidden">
-                    <?php if (isset($register_error)): ?>
-                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                            <?php echo htmlspecialchars($register_error); ?>
-                        </div>
-                    <?php elseif (isset($register_success)): ?>
-                        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-                            <?php echo htmlspecialchars($register_success); ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST">
-                        <input type="hidden" name="action" value="register">
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="reg_username">用户名</label>
-                            <input type="text" name="reg_username" id="reg_username" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="reg_email">邮箱</label>
-                            <input type="email" name="reg_email" id="reg_email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2" for="reg_password">密码</label>
-                            <input type="password" name="reg_password" id="reg_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        </div>
-                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-semibold transition">
-                            注册
-                        </button>
-                    </form>
-
-                    <div class="text-center mt-4">
-                        <p class="text-gray-600">已有账号？</p>
-                        <button onclick="switchToLogin()" class="text-blue-600 hover:text-blue-800 font-medium">
-                            立即登录
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // 模态框控制
-        function openAuthModal(type) {
-            document.getElementById('authModal').classList.remove('hidden');
+        // Cookie 操作函数
+        function setCookie(name, value, days) {
+            const expires = new Date();
+            expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = name + '=' + value + ';expires=' + expires.toUTCString() + ';path=/';
+        }
 
-            if (type === 'register') {
-                switchToRegister();
-            } else {
-                switchToLogin();
+        function getCookie(name) {
+            const nameEQ = name + '=';
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
             }
+            return null;
         }
 
-        function closeAuthModal() {
-            document.getElementById('authModal').classList.add('hidden');
+        // 布局切换函数
+        function switchBookLayout(layout, containerId) {
+            // 保存到 Cookie
+            setCookie('book_layout', layout, 365);
+            
+            // 重新加载页面以应用新布局
+            location.reload();
         }
-
-        function switchToLogin() {
-            document.getElementById('authModalTitle').textContent = '用户登录';
-            document.getElementById('loginForm').classList.remove('hidden');
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('forgotPasswordForm').classList.add('hidden');
-        }
-
-        function switchToRegister() {
-            document.getElementById('authModalTitle').textContent = '用户注册';
-            document.getElementById('registerForm').classList.remove('hidden');
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('forgotPasswordForm').classList.add('hidden');
-        }
-
-        function showForgotPasswordForm() {
-            document.getElementById('authModalTitle').textContent = '忘记密码';
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('forgotPasswordForm').classList.remove('hidden');
-        }
-
-        // 点击背景关闭模态框
-        document.getElementById('authModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeAuthModal();
-            }
-        });
-
-        // ESC键关闭模态框
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeAuthModal();
-            }
-        });
-
-        // 如果URL中有错误参数，自动打开登录模态框
-        <?php if (isset($login_error) || isset($register_error) || isset($register_success) || isset($forgot_password_error) || isset($forgot_password_message)): ?>
-            window.onload = function() {
-                openAuthModal('login');
-                <?php if (isset($forgot_password_error) || isset($forgot_password_message)): ?>
-                    showForgotPasswordForm();
-                <?php endif; ?>
-            };
-        <?php endif; ?>
     </script>
 </body>
 

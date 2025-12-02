@@ -732,3 +732,138 @@ function clean_to_utf8($str, $fromEncoding = 'auto') {
     // 最后一步：移除无法表示的字符（保险起见）
     return mb_encode_numericentity($str, [0x0080, 0xffff, 0, 0xffff], 'UTF-8');
 }
+
+/**
+ * 渲染书籍列表（支持方格和列表两种布局）
+ * @param array $books 书籍数组
+ * @param string $layout 布局类型：'grid' 或 'list'，默认为 'grid'
+ * @param string $query 搜索关键词（用于高亮显示）
+ * @param string $container_id 容器ID（用于布局切换）
+ */
+function render_books_list($books, $layout = 'grid', $query = '', $container_id = 'booksList') {
+    if (empty($books)) {
+        return '';
+    }
+    
+    $layout_class = $layout === 'list' ? 'list' : 'grid';
+    $grid_class = $layout === 'list' ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
+    
+    ob_start();
+    ?>
+    <div id="<?php echo htmlspecialchars($container_id); ?>" class="books-container" data-layout="<?php echo htmlspecialchars($layout); ?>">
+        <?php if ($layout === 'list'): ?>
+            <!-- 列表布局 -->
+            <div class="space-y-4">
+                <?php foreach ($books as $book): ?>
+                    <a href="?action=detail&id=<?php echo $book['id']; ?>">
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex mb-6">
+                            <div class="w-32 sm:w-40 flex-shrink-0">
+                                <div class="bg-gray-100 flex items-center justify-center h-full">
+                                    <?php if ($book['cover_url']): ?>
+                                        <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
+                                    <?php else: ?>
+                                        <div class="text-gray-400 text-center p-2">
+                                            <?php
+                                            // 简单文件格式到FontAwesome图标类的映射
+                                            $format_icon_map = [
+                                                'pdf' => 'fa-file-pdf',
+                                                'epub' => 'fa-file-lines',
+                                                'mobi' => 'fa-file-lines',
+                                                'azw3' => 'fa-file-lines',
+                                                'txt' => 'fa-file-alt',
+                                                'doc' => 'fa-file-word',
+                                                'docx' => 'fa-file-word',
+                                                'xls' => 'fa-file-excel',
+                                                'xlsx' => 'fa-file-excel',
+                                                'ppt' => 'fa-file-powerpoint',
+                                                'pptx' => 'fa-file-powerpoint',
+                                                'zip' => 'fa-file-archive',
+                                                'rar' => 'fa-file-archive',
+                                            ];
+                                            $icon = 'fa-book';
+                                            $fmt = strtolower($book['file_format'] ?? '');
+                                            if ($fmt && isset($format_icon_map[$fmt])) {
+                                                $icon = $format_icon_map[$fmt];
+                                            }
+                                            ?>
+                                            <i class="fas <?php echo $icon; ?> text-2xl mb-1"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="flex-1 p-4 flex flex-col justify-between">
+                                <div>
+                                    <h3 class="font-bold text-lg mb-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query); ?></h3>
+                                    <?php if ($book['author']): ?>
+                                        <p class="text-gray-600 mb-2">
+                                            <i class="fas fa-user text-sm mr-2"></i>
+                                            <?php echo empty($query) ? htmlspecialchars($book['author']) : highlight_matches(htmlspecialchars($book['author']), $query); ?>
+                                        </p>
+                                    <?php endif; ?>
+                                    <?php if (!empty($book['description'])): ?>
+                                        <p class="text-gray-500 text-sm line-clamp-2 mb-2"><?php echo htmlspecialchars(substr($book['description'], 0, 150)); ?><?php echo strlen($book['description']) > 150 ? '...' : ''; ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="flex items-center justify-between mt-2">
+                                    <div class="flex gap-2 items-center text-xs">
+                                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded"><?php echo htmlspecialchars($book['file_format']); ?></span>
+                                        <span class="text-gray-500"><?php echo format_file_size($book['file_size']); ?></span>
+                                    </div>
+                                    <?php if (isset($book['relevance_score']) && !empty($query)): ?>
+                                        <div class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                            相关度: <?php echo round($book['relevance_score'], 1); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <!-- 方格布局 -->
+            <div class="grid <?php echo $grid_class; ?> gap-4">
+                <?php foreach ($books as $book): ?>
+                    <a href="?action=detail&id=<?php echo $book['id']; ?>">
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                            <div class="bg-gray-100 flex items-center justify-center aspect-[2/3]">
+                                <?php if ($book['cover_url']): ?>
+                                    <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
+                                <?php else: ?>
+                                    <div class="text-gray-400 text-center p-4">
+                                        <i class="fas fa-book text-4xl mb-2"></i>
+                                        <div class="text-sm"><?php echo htmlspecialchars($book['title']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="p-4">
+                                <h3 class="font-bold text-lg mb-2 line-clamp-2"><?php echo empty($query) ? htmlspecialchars($book['title']) : highlight_matches(htmlspecialchars($book['title']), $query); ?></h3>
+                                <?php if (!empty($book['description'])): ?>
+                                        <p class="text-gray-500 text-sm line-clamp-2 mb-2"><?php echo htmlspecialchars(substr($book['description'], 0, 150)); ?><?php echo strlen($book['description']) > 150 ? '...' : ''; ?></p>
+                                    <?php endif; ?>
+
+                                <?php if ($book['author']): ?>
+                                    <p class="text-gray-600 mb-2 line-clamp-2">
+                                        <i class="fas fa-user text-sm mr-2"></i>
+                                        <?php echo empty($query) ? htmlspecialchars($book['author']) : highlight_matches(htmlspecialchars($book['author']), $query); ?>
+                                    </p>
+                                <?php endif; ?>
+                                <div class="mt-2 flex justify-between items-center text-xs">
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded"><?php echo htmlspecialchars($book['file_format']); ?></span>
+                                    <span class="text-gray-500"><?php echo format_file_size($book['file_size']); ?></span>
+                                </div>
+                                <?php if (isset($book['relevance_score']) && !empty($query)): ?>
+                                    <div class="mt-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded inline-block">
+                                        相关度: <?php echo round($book['relevance_score'], 1); ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+    return ob_get_clean();
+}
