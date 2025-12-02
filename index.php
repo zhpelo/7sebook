@@ -1356,7 +1356,7 @@ if ($action === 'search') {
                                                         </p>
                                                     <?php endif; ?>
                                                     <?php if (!empty($book['description'])): ?>
-                                                        <p class="text-gray-500 text-sm mb-2 line-clamp-2"><?php echo htmlspecialchars(substr($book['description'], 0, 150)); ?><?php echo strlen($book['description']) > 150 ? '...' : ''; ?></p>
+                                                        <p class="text-gray-500 text-sm mb-2 line-clamp-4"><?php echo htmlspecialchars(substr($book['description'], 0, 150)); ?><?php echo strlen($book['description']) > 150 ? '...' : ''; ?></p>
                                                     <?php endif; ?>
                                                 </div>
                                                 <div class="flex items-center justify-between mt-2">
