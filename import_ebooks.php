@@ -187,9 +187,9 @@ function extract_metadata(string $file_path, string $md5, string $cover_dir): ?a
         $meta[ 'title' ] = $pathinfo['filename'];
         // 读取文件内容的前300个字符作为描述
         if (is_readable($file_path)) {
-            $content = file_get_contents($file_path);
+            $content = read_txt_file_as_utf8($file_path);
             // 使用 preg_replace 去除所有空白字符（包括空格、换行、回车、制表符等）
-            $content = preg_replace('/\s+/', ' ', $content);
+            $content = trim( preg_replace('/[\s\x{3000}]+/u', ' ', $content) );
             if ($content !== false) {
                 // 兼容中文的字符截取
                 $meta['description'] = mb_strlen($content, 'UTF-8') > 300 ? mb_substr($content, 0, 300, 'UTF-8')."..." : $content;
@@ -268,4 +268,43 @@ function copy_and_delete(string $src, string $dst): bool {
         return unlink($src);
     }
     return false;
+}
+
+function read_txt_file_as_utf8($filename) {
+    if (!file_exists($filename)) {
+        throw new Exception("文件不存在: $filename");
+    }
+
+    // 1. 以二进制方式读取原始内容
+    $content = file_get_contents($filename);
+    if ($content === false) {
+        throw new Exception("无法读取文件: $filename");
+    }
+
+    // 2. 检测编码（注意：mb_detect_encoding 可能不完美）
+    $encodings = [
+        'UTF-8',
+        'UTF-16LE', 'UTF-16BE',
+        'UTF-32LE', 'UTF-32BE',
+        'GBK', 'GB2312', 'BIG5',
+        'SJIS', 'EUC-JP',
+        'EUC-KR',
+        'ISO-8859-1', 'ISO-8859-15',
+        'Windows-1251', 'Windows-1252',
+        'ASCII'
+    ];
+
+    $detectedEncoding = mb_detect_encoding($content, $encodings, true);
+
+    // 如果无法检测，默认当作 UTF-8（或可选 ISO-8859-1）
+    if ($detectedEncoding === false) {
+        $detectedEncoding = 'UTF-8';
+    }
+
+    // 3. 转换为 UTF-8
+    if ($detectedEncoding !== 'UTF-8') {
+        $content = mb_convert_encoding($content, 'UTF-8', $detectedEncoding);
+    }
+
+    return $content;
 }

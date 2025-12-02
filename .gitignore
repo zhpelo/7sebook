@@ -2,5 +2,11 @@
 /ebook
 /covers
 /duplicate
+pending/
+ebook_files/
 config.php
 .DS_Store
+
+test.php
+.gitignore
+1.txt
