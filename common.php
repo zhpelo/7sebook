@@ -140,10 +140,7 @@ function clear_user_session()
  */
 function verify_user_login($username, $password)
 {
-    $pdo = get_db_connection();
-    if (!$pdo) {
-        return false;
-    }
+    global $pdo;
     
     $stmt = $pdo->prepare("SELECT id, username, password_hash, role FROM users WHERE username = ?");
     $stmt->execute([$username]);
@@ -185,10 +182,7 @@ function get_client_ip()
  */
 function check_download_limit($user_id, $ip_address = null)
 {
-    $pdo = get_db_connection();
-    if (!$pdo) {
-        return false;
-    }
+    global $pdo;
     
     if ($ip_address === null) {
         $ip_address = get_client_ip();
@@ -226,10 +220,7 @@ function check_download_limit($user_id, $ip_address = null)
  */
 function try_log_download($user_id, $book_id, $ip_address = null)
 {
-    $pdo = get_db_connection();
-    if (!$pdo) {
-        return false;
-    }
+    global $pdo;
     
     if ($ip_address === null) {
         $ip_address = get_client_ip();
@@ -322,10 +313,7 @@ function log_download($user_id, $book_id)
 {
     $ip_address = get_client_ip();
     $current_time = date('Y-m-d H:i:s');
-    $pdo = get_db_connection();
-    if (!$pdo) {
-        return false;
-    }
+    global $pdo;
     
     try {
         // 尝试带IP字段的插入
@@ -365,10 +353,7 @@ function get_user_download_count()
         return 0;
     }
     
-    $pdo = get_db_connection();
-    if (!$pdo) {
-        return 0;
-    }
+    global $pdo;
     
     $user_id = get_user_id();
     $ip_address = get_client_ip();
@@ -420,10 +405,7 @@ function get_user_download_count()
  */
 function get_user_info($user_id)
 {
-    $pdo = get_db_connection();
-    if (!$pdo) {
-        return null;
-    }
+    global $pdo;
     
     $stmt = $pdo->prepare("SELECT id, username, email, created_at FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
@@ -435,10 +417,7 @@ function get_user_info($user_id)
  */
 function update_user_password($user_id, $new_password)
 {
-    $pdo = get_db_connection();
-    if (!$pdo) {
-        return false;
-    }
+    global $pdo;
     
     $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
     $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
@@ -450,10 +429,7 @@ function update_user_password($user_id, $new_password)
  */
 function update_user_email($user_id, $new_email)
 {
-    $pdo = get_db_connection();
-    if (!$pdo) {
-        return false;
-    }
+   global $pdo;
     
     $stmt = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
     return $stmt->execute([$user_id, $new_email]);
