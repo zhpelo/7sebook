@@ -29,34 +29,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $email = trim($_POST['reg_email'] ?? '');
 
     if ($username && $password && $email) {
-        // 检查用户名是否已存在
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
-        $stmt->execute([$username]);
-        if ($stmt->fetch()) {
-            $register_error = '用户名已存在';
+        // 验证用户名格式
+        $username_validation = validate_username($username);
+        if (!$username_validation['valid']) {
+            $register_error = $username_validation['error'];
             $action = 'register'; // 保持显示注册页面
         } else {
-            // 插入新用户
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            $current_time = get_current_time();
-            $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, created_at) VALUES (?, ?, ?, ?)");
-            if ($stmt->execute([$username, $password_hash, $email, $current_time])) {
-                // 注册成功后自动登录
-                $stmt = $pdo->prepare("SELECT id, username, role FROM users WHERE username = ?");
-                $stmt->execute([$username]);
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if ($user) {
-                    set_user_session($user);
-                    header('Location: ' . $_SERVER['PHP_SELF']);
-                    exit;
-                }
-
-                $register_success = '注册成功，请登录';
-                $action = 'login'; // 显示登录页面
+            // 验证密码格式
+            $password_validation = validate_password($password);
+            if (!$password_validation['valid']) {
+                $register_error = $password_validation['error'];
+                $action = 'register';
             } else {
-                $register_error = '注册失败';
-                $action = 'register'; // 保持显示注册页面
+                // 统一将邮箱转为小写
+                $email = strtolower($email);
+                
+                // 验证邮箱格式
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $register_error = '请输入有效的邮箱地址';
+                    $action = 'register';
+                } else {
+                    // 检查用户名是否已存在
+                    $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+                    $stmt->execute([$username]);
+                    if ($stmt->fetch()) {
+                        $register_error = '用户名已存在';
+                        $action = 'register'; // 保持显示注册页面
+                    } else {
+                        // 检查邮箱是否已存在（使用小写比对）
+                        $stmt = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) = ?");
+                        $stmt->execute([$email]);
+                        if ($stmt->fetch()) {
+                            $register_error = '该邮箱已被注册';
+                            $action = 'register'; // 保持显示注册页面
+                        } else {
+                            // 插入新用户
+                            $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                            $current_time = get_current_time();
+                            $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, created_at) VALUES (?, ?, ?, ?)");
+                            if ($stmt->execute([$username, $password_hash, $email, $current_time])) {
+                                // 注册成功后自动登录
+                                $stmt = $pdo->prepare("SELECT id, username, role FROM users WHERE username = ?");
+                                $stmt->execute([$username]);
+                                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                                if ($user) {
+                                    set_user_session($user);
+                                    header('Location: ' . $_SERVER['PHP_SELF']);
+                                    exit;
+                                }
+
+                                $register_success = '注册成功，请登录';
+                                $action = 'login'; // 显示登录页面
+                            } else {
+                                $register_error = '注册失败';
+                                $action = 'register'; // 保持显示注册页面
+                            }
+                        }
+                    }
+                }
             }
         }
     } else {
@@ -78,10 +109,13 @@ if (isset($_GET['logout'])) {
 // 忘记密码处理
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'forgot_password') {
     $email = trim($_POST['email'] ?? '');
+    
+    // 统一转为小写
+    $email = strtolower($email);
 
     if ($email) {
-        // 检查邮箱是否存在
-        $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ?");
+        // 检查邮箱是否存在（使用小写比对）
+        $stmt = $pdo->prepare("SELECT id, username FROM users WHERE LOWER(email) = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -157,7 +191,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $confirm_password = $_POST['confirm_password'] ?? '';
 
     if ($token && $password && $confirm_password) {
-        if ($password === $confirm_password) {
+        // 验证密码格式
+        $password_validation = validate_password($password);
+        if (!$password_validation['valid']) {
+            $reset_password_error = $password_validation['error'];
+        } elseif ($password !== $confirm_password) {
+            $reset_password_error = '两次输入的密码不一致。';
+        } else {
             // 验证令牌
             $stmt = $pdo->prepare("SELECT email, expires_at FROM password_resets WHERE token = ?");
             $stmt->execute([$token]);
@@ -166,10 +206,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             if ($reset_request) {
                 // 检查令牌是否过期
                 if (strtotime($reset_request['expires_at']) > time()) {
-                    // 更新密码
+                    // 更新密码（使用小写邮箱）
                     $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = ?");
-                    $stmt->execute([$password_hash, $reset_request['email']]);
+                    $reset_email_lower = strtolower($reset_request['email']);
+                    $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE LOWER(email) = ?");
+                    $stmt->execute([$password_hash, $reset_email_lower]);
 
                     // 删除已使用的令牌
                     $stmt = $pdo->prepare("DELETE FROM password_resets WHERE token = ?");
@@ -182,8 +223,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             } else {
                 $reset_password_error = '无效的密码重置链接。';
             }
-        } else {
-            $reset_password_error = '两次输入的密码不一致。';
         }
     } else {
         $reset_password_error = '请填写所有必填字段。';
@@ -196,6 +235,13 @@ if (!isset($action)) {
     $action = $_GET['action'] ?? 'search';
 }
 $book_id = $_GET['id'] ?? null;
+
+// 初始化可能用到的变量，避免未定义警告
+$query = trim($_GET['q'] ?? '');
+$type = $_GET['type'] ?? 'all';
+$format = $_GET['format'] ?? '';
+$books = [];
+$total = 0;
 
 // 获取用户布局偏好（从 Cookie 读取，默认为 grid）
 $book_layout = $_COOKIE['book_layout'] ?? 'grid';
@@ -320,15 +366,16 @@ if ($action === 'download' && $book_id && is_logged_in()) {
 
 // 搜索相关代码
 if ($action === 'search') {
-    // 获取搜索参数
-    $query = trim($_GET['q'] ?? '');
-    $type = $_GET['type'] ?? 'all';
-    $format = $_GET['format'] ?? ''; // 新增文件格式参数
+    // 获取搜索参数（如果之前已初始化则使用已有值）
+    $query = trim($query);
+    $type = $type ?? 'all';
+    $format = $format ?? ''; // 新增文件格式参数
     $page = max(1, intval($_GET['page'] ?? 1));
 
     $limit = 20;
     $offset = ($page - 1) * $limit;
 
+    // 如果之前已初始化，这里会重新赋值
     $books = [];
     $total = 0;
 
@@ -362,7 +409,12 @@ if ($action === 'search') {
 
         $stmt->execute();
         $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+        
+        // 记录搜索历史（只在第一页时记录，避免重复记录）
+        if ($page === 1) {
+            $user_id = is_logged_in() ? get_user_id() : null;
+            log_search_history($query, $type, $total, $user_id);
+        }
 
     } else {
         // 没有搜索关键词时，显示最新的书籍（支持分页）
@@ -641,6 +693,34 @@ if ($action === 'search') {
             </div>
         </div>
     </nav>
+    
+    <?php 
+    // 获取热门搜索关键词（在搜索页面和首页显示）
+    $popular_searches = [];
+    if ($action === 'search' || (empty($action) || $action === 'search')) {
+        $popular_searches = get_popular_searches(10);
+    }
+    ?>
+    
+    <?php if (!empty($popular_searches) && ($action === 'search' || empty($action) || $action === 'search')): ?>
+        <!-- 热门搜索 -->
+        <div class="bg-white border-b border-gray-200 shadow-sm">
+            <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs sm:text-sm text-gray-600 font-medium whitespace-nowrap">
+                        <i class="fas fa-fire text-orange-500 mr-1" aria-hidden="true"></i>热门搜索：
+                    </span>
+                    <?php foreach ($popular_searches as $popular): ?>
+                        <a href="?q=<?php echo urlencode($popular['search_query']); ?>" 
+                           class="inline-flex items-center px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 rounded-full transition-colors whitespace-nowrap">
+                            <?php echo htmlspecialchars($popular['search_query']); ?>
+                            <span class="ml-1 text-gray-500 text-xs">(<?php echo $popular['search_count']; ?>)</span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <?php if ($action === 'login'): ?>
         <!-- 登录页面 -->
@@ -728,7 +808,8 @@ if ($action === 'search') {
                         </div>
                         <div>
                             <label class="block text-gray-700 text-sm font-bold mb-2" for="reg_password">密码</label>
-                            <input type="password" name="reg_password" id="reg_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <input type="password" name="reg_password" id="reg_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required minlength="6" maxlength="32">
+                            <p class="text-gray-500 text-xs mt-1">密码长度为6-32个字符</p>
                         </div>
                         <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-semibold transition">
                             注册
@@ -875,24 +956,35 @@ if ($action === 'search') {
                         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
                         if ($user && password_verify($current_password, $user['password_hash'])) {
-                            // 更新邮箱（如果提供了新邮箱）
-                            if ($email && $email !== $user_info['email']) {
-                                if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        // 更新邮箱（如果提供了新邮箱）
+                        if ($email && $email !== $user_info['email']) {
+                            // 统一转为小写
+                            $email = strtolower(trim($email));
+                            
+                            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                                // 检查邮箱是否已被其他用户使用（使用小写比对）
+                                $stmt = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) = ? AND id != ?");
+                                $stmt->execute([$email, get_user_id()]);
+                                if ($stmt->fetch()) {
+                                    $profile_error = '该邮箱已被其他用户使用。';
+                                } else {
                                     if (update_user_email(get_user_id(), $email)) {
                                         $profile_message = '邮箱更新成功。';
                                         $user_info['email'] = $email; // 更新显示的邮箱
                                     } else {
                                         $profile_error = '邮箱更新失败，请稍后再试。';
                                     }
-                                } else {
-                                    $profile_error = '请输入有效的邮箱地址。';
                                 }
+                            } else {
+                                $profile_error = '请输入有效的邮箱地址。';
                             }
+                        }
 
                             // 更新密码（如果提供了新密码）
                             if ($new_password) {
-                                if (strlen($new_password) < 6) {
-                                    $profile_error = '密码至少需要6个字符。';
+                                $password_validation = validate_password($new_password);
+                                if (!$password_validation['valid']) {
+                                    $profile_error = $password_validation['error'];
                                 } elseif ($new_password !== $confirm_password) {
                                     $profile_error = '新密码与确认密码不匹配。';
                                 } else {
@@ -957,7 +1049,7 @@ if ($action === 'search') {
                                 <div>
                                     <label class="block text-gray-700 text-sm font-bold mb-2" for="new_password">新密码</label>
                                     <input type="password" name="new_password" id="new_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <p class="text-gray-500 text-xs mt-1">至少6个字符，留空则不更改</p>
+                                    <p class="text-gray-500 text-xs mt-1">6-32个字符，留空则不更改</p>
                                 </div>
 
                                 <div>

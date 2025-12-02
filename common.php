@@ -425,14 +425,144 @@ function update_user_password($user_id, $new_password)
 }
 
 /**
- * 更新用户邮箱
+ * 验证用户名格式
+ * 用户名格式要求：
+ * - 长度 4-20
+ * - 只允许字母、数字、下划线、连字符
+ * - 以字母开头
+ * - 不能包含连续特殊字符
+ * @param string $username 用户名
+ * @return array 返回 ['valid' => bool, 'error' => string]
+ */
+function validate_username($username)
+{
+    // 检查长度
+    $len = mb_strlen($username);
+    if ($len < 4 || $len > 20) {
+        return ['valid' => false, 'error' => '用户名长度必须在4-20个字符之间'];
+    }
+    
+    // 检查是否以字母开头
+    if (!preg_match('/^[a-zA-Z]/', $username)) {
+        return ['valid' => false, 'error' => '用户名必须以字母开头'];
+    }
+    
+    // 检查是否只包含字母、数字、下划线、连字符
+    if (!preg_match('/^[a-zA-Z0-9_-]+$/', $username)) {
+        return ['valid' => false, 'error' => '用户名只能包含字母、数字、下划线和连字符'];
+    }
+    
+    // 检查是否包含连续特殊字符（下划线或连字符连续出现）
+    if (preg_match('/[_-]{2,}/', $username)) {
+        return ['valid' => false, 'error' => '用户名不能包含连续的特殊字符（下划线或连字符）'];
+    }
+    
+    return ['valid' => true, 'error' => ''];
+}
+
+/**
+ * 验证密码格式
+ * 密码格式要求：
+ * - 长度 6-32 位
+ * @param string $password 密码
+ * @return array 返回 ['valid' => bool, 'error' => string]
+ */
+function validate_password($password)
+{
+    $len = strlen($password);
+    if ($len < 6) {
+        return ['valid' => false, 'error' => '密码长度至少需要6个字符'];
+    }
+    if ($len > 32) {
+        return ['valid' => false, 'error' => '密码长度不能超过32个字符'];
+    }
+    
+    return ['valid' => true, 'error' => ''];
+}
+
+/**
+ * 更新用户邮箱（自动转为小写）
  */
 function update_user_email($user_id, $new_email)
 {
    global $pdo;
     
+    // 统一转为小写
+    $new_email = strtolower(trim($new_email));
+    
     $stmt = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
-    return $stmt->execute([$user_id, $new_email]);
+    return $stmt->execute([$new_email, $user_id]);
+}
+
+/**
+ * 记录搜索历史
+ * @param string $query 搜索关键词
+ * @param string $type 搜索类型
+ * @param int $results_count 搜索结果数量
+ * @param int|null $user_id 用户ID（如果已登录）
+ * @param string|null $ip_address IP地址
+ */
+function log_search_history($query, $type = 'all', $results_count = 0, $user_id = null, $ip_address = null)
+{
+    global $pdo;
+    
+    if (empty($query)) {
+        return false;
+    }
+    
+    if ($ip_address === null) {
+        $ip_address = get_client_ip();
+    }
+    
+    // 如果用户已登录，使用用户ID
+    if ($user_id === null && is_logged_in()) {
+        $user_id = get_user_id();
+    }
+    
+    try {
+        // 尝试插入带ip_address字段的记录
+        $stmt = $pdo->prepare("
+            INSERT INTO search_history (user_id, search_query, search_type, results_count, ip_address, search_time) 
+            VALUES (?, ?, ?, ?, ?, NOW())
+        ");
+        return $stmt->execute([$user_id, $query, $type, $results_count, $ip_address]);
+    } catch (PDOException $e) {
+        // 如果ip_address字段不存在，使用旧的插入方式
+        if (strpos($e->getMessage(), 'Unknown column') !== false) {
+            $stmt = $pdo->prepare("
+                INSERT INTO search_history (user_id, search_query, search_type, results_count, search_time) 
+                VALUES (?, ?, ?, ?, NOW())
+            ");
+            return $stmt->execute([$user_id, $query, $type, $results_count]);
+        }
+        throw $e;
+    }
+}
+
+/**
+ * 获取热门搜索关键词（按搜索次数排序）
+ * @param int $limit 返回数量，默认10
+ * @return array
+ */
+function get_popular_searches($limit = 10)
+{
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT search_query, COUNT(*) as search_count
+            FROM search_history
+            WHERE search_query != ''
+            GROUP BY search_query
+            ORDER BY search_count DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('获取热门搜索失败: ' . $e->getMessage());
+        return [];
+    }
 }
 
 // ============================================

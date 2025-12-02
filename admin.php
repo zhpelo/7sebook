@@ -163,6 +163,63 @@ switch ($action) {
         $top_books = $stmt->fetchAll(PDO::FETCH_ASSOC);
         break;
 
+    case 'search_history':
+        // 获取搜索关键词过滤
+        $search_keyword = trim($_GET['search'] ?? '');
+        
+        // 构建查询条件
+        $where_clause = '';
+        $params = [];
+        if (!empty($search_keyword)) {
+            $where_clause = 'WHERE sh.search_query LIKE :search';
+            $params[':search'] = '%' . $search_keyword . '%';
+        }
+        
+        // 获取搜索记录
+        $sql = "
+            SELECT sh.*, u.username
+            FROM search_history sh
+            LEFT JOIN users u ON sh.user_id = u.id
+            $where_clause
+            ORDER BY sh.search_time DESC
+            LIMIT :limit OFFSET :offset
+        ";
+        $stmt = $pdo->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $search_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // 获取搜索记录总数
+        $count_sql = "SELECT COUNT(*) FROM search_history sh $where_clause";
+        $count_stmt = $pdo->prepare($count_sql);
+        foreach ($params as $key => $value) {
+            $count_stmt->bindValue($key, $value, PDO::PARAM_STR);
+        }
+        $count_stmt->execute();
+        $total_search_records = $count_stmt->fetchColumn();
+        $total_pages = ceil($total_search_records / $limit);
+        
+        // 获取热门搜索关键词统计
+        $stmt = $pdo->prepare("
+            SELECT 
+                search_query,
+                COUNT(*) as search_count,
+                COUNT(DISTINCT user_id) as user_count,
+                COUNT(DISTINCT ip_address) as ip_count
+            FROM search_history
+            WHERE search_query != ''
+            GROUP BY search_query
+            ORDER BY search_count DESC
+            LIMIT 20
+        ");
+        $stmt->execute();
+        $popular_searches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        break;
+
     case 'tags':
         // 获取搜索关键词
         $tag_search = trim($_GET['search'] ?? '');
@@ -298,11 +355,45 @@ switch ($action) {
             $role = $_POST['role'] ?? 'user';
 
             if ($username && $password && $email) {
-                $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, role) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$username, $password_hash, $email, $role]);
-                header('Location: ?action=users&message=' . urlencode('用户添加成功'));
-                exit;
+                // 验证用户名格式
+                $username_validation = validate_username($username);
+                if (!$username_validation['valid']) {
+                    $error = $username_validation['error'];
+                } else {
+                    // 验证密码格式
+                    $password_validation = validate_password($password);
+                    if (!$password_validation['valid']) {
+                        $error = $password_validation['error'];
+                    } else {
+                        // 统一将邮箱转为小写
+                        $email = strtolower($email);
+                        
+                        // 验证邮箱格式
+                        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                            $error = '请输入有效的邮箱地址';
+                        } else {
+                            // 检查用户名是否已存在
+                            $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+                            $stmt->execute([$username]);
+                            if ($stmt->fetch()) {
+                                $error = '用户名已存在';
+                            } else {
+                                // 检查邮箱是否已存在（使用小写比对）
+                                $stmt = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) = ?");
+                                $stmt->execute([$email]);
+                                if ($stmt->fetch()) {
+                                    $error = '该邮箱已被注册';
+                                } else {
+                                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                                    $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, email, role) VALUES (?, ?, ?, ?)");
+                                    $stmt->execute([$username, $password_hash, $email, $role]);
+                                    header('Location: ?action=users&message=' . urlencode('用户添加成功'));
+                                    exit;
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
                 $error = '请填写完整信息';
             }
@@ -329,16 +420,52 @@ switch ($action) {
                 $new_password = $_POST['password'] ?? '';
 
                 if ($username && $email) {
-                    if ($new_password) {
-                        $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
-                        $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ?, password_hash = ? WHERE id = ?");
-                        $stmt->execute([$username, $email, $role, $password_hash, $user_id]);
+                    // 验证用户名格式
+                    $username_validation = validate_username($username);
+                    if (!$username_validation['valid']) {
+                        $error = $username_validation['error'];
                     } else {
-                        $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ? WHERE id = ?");
-                        $stmt->execute([$username, $email, $role, $user_id]);
+                        // 统一将邮箱转为小写
+                        $email = strtolower($email);
+                        
+                        // 验证邮箱格式
+                        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                            $error = '请输入有效的邮箱地址';
+                        } else {
+                            // 检查用户名是否被其他用户使用
+                            $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
+                            $stmt->execute([$username, $user_id]);
+                            if ($stmt->fetch()) {
+                                $error = '用户名已被其他用户使用';
+                            } else {
+                            // 检查邮箱是否被其他用户使用（使用小写比对）
+                            $stmt = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) = ? AND id != ?");
+                            $stmt->execute([$email, $user_id]);
+                            if ($stmt->fetch()) {
+                                $error = '该邮箱已被其他用户使用';
+                            } else {
+                                // 如果提供了新密码，验证密码格式
+                                if ($new_password) {
+                                    $password_validation = validate_password($new_password);
+                                    if (!$password_validation['valid']) {
+                                        $error = $password_validation['error'];
+                                    } else {
+                                        $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+                                        $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ?, password_hash = ? WHERE id = ?");
+                                        $stmt->execute([$username, $email, $role, $password_hash, $user_id]);
+                                        header('Location: ?action=users&message=' . urlencode('用户信息更新成功'));
+                                        exit;
+                                    }
+                                } else {
+                                    $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, role = ? WHERE id = ?");
+                                    $stmt->execute([$username, $email, $role, $user_id]);
+                                    header('Location: ?action=users&message=' . urlencode('用户信息更新成功'));
+                                    exit;
+                                }
+                            }
+                            }
+                        }
                     }
-                    header('Location: ?action=users&message=' . urlencode('用户信息更新成功'));
-                    exit;
                 } else {
                     $error = '请填写完整信息';
                 }
@@ -722,17 +849,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'admin_settings') {
     $password = $_POST['password'] ?? '';
 
     if ($admin_id && $username && $email) {
-        if ($password) {
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, password_hash = ? WHERE id = ?");
-            $stmt->execute([$username, $email, $password_hash, $admin_id]);
+        // 验证用户名格式
+        $username_validation = validate_username($username);
+        if (!$username_validation['valid']) {
+            $error = $username_validation['error'];
         } else {
-            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
-            $stmt->execute([$username, $email, $admin_id]);
+            // 统一将邮箱转为小写
+            $email = strtolower($email);
+            
+            // 验证邮箱格式
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $error = '请输入有效的邮箱地址';
+            } else {
+                // 检查用户名是否被其他用户使用
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
+                $stmt->execute([$username, $admin_id]);
+                if ($stmt->fetch()) {
+                    $error = '用户名已被其他用户使用';
+                } else {
+                    // 检查邮箱是否被其他用户使用（使用小写比对）
+                    $stmt = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) = ? AND id != ?");
+                    $stmt->execute([$email, $admin_id]);
+                    if ($stmt->fetch()) {
+                        $error = '该邮箱已被其他用户使用';
+                    } else {
+                        // 如果提供了新密码，验证密码格式
+                        if ($password) {
+                            $password_validation = validate_password($password);
+                            if (!$password_validation['valid']) {
+                                $error = $password_validation['error'];
+                            } else {
+                                $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                                $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, password_hash = ? WHERE id = ?");
+                                $stmt->execute([$username, $email, $password_hash, $admin_id]);
+                                $_SESSION['admin_username'] = $username;
+                                header('Location: ?action=admin_settings&message=' . urlencode('管理员信息更新成功'));
+                                exit;
+                            }
+                        } else {
+                            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
+                            $stmt->execute([$username, $email, $admin_id]);
+                            $_SESSION['admin_username'] = $username;
+                            header('Location: ?action=admin_settings&message=' . urlencode('管理员信息更新成功'));
+                            exit;
+                        }
+                    }
+                }
+            }
         }
-        $_SESSION['admin_username'] = $username;
-        header('Location: ?action=admin_settings&message=' . urlencode('管理员信息更新成功'));
-        exit;
     } else {
         $error = '请填写用户名和邮箱';
     }
@@ -798,6 +962,10 @@ $error = $_GET['error'] ?? null;
             <a href="?action=downloads" class="flex items-center py-3 px-4 rounded-lg transition-colors <?php echo $action === 'downloads' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'; ?>">
                 <i class="fas fa-download w-5 mr-3"></i>
                 <span>下载记录</span>
+            </a>
+            <a href="?action=search_history" class="flex items-center py-3 px-4 rounded-lg transition-colors <?php echo $action === 'search_history' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'; ?>">
+                <i class="fas fa-search w-5 mr-3"></i>
+                <span>搜索记录</span>
             </a>
             <a href="?action=tags" class="flex items-center py-3 px-4 rounded-lg transition-colors <?php echo $action === 'tags' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'; ?>">
                 <i class="fas fa-tags w-5 mr-3"></i>
@@ -1493,7 +1661,7 @@ $error = $_GET['error'] ?? null;
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作者</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">类别</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">更新时间</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">格式</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">大小</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
@@ -1522,11 +1690,11 @@ $error = $_GET['error'] ?? null;
                                             </td>
                                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                                                 <div class="max-w-xs truncate" title="<?php echo htmlspecialchars($book['author']); ?>">
-                                                    <?php echo htmlspecialchars($book['author']); ?>
+                                                    <?php echo htmlspecialchars($book['author'] ?: '未知'); ?>
                                                 </div>
                                             </td>
                                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
-                                                <?php echo htmlspecialchars($book['category'] ?? '-'); ?>
+                                                <?php echo htmlspecialchars($book['updated_at']); ?>
                                             </td>
                                             <td class="px-4 py-3 whitespace-nowrap">
                                                 <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
@@ -1738,6 +1906,120 @@ $error = $_GET['error'] ?? null;
                     }
                 });
             </script>
+
+        <?php elseif ($action === 'search_history'): ?>
+            <!-- 搜索记录 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800">搜索记录</h2>
+                    <div class="text-sm text-gray-600">
+                        共 <?php echo number_format($total_search_records); ?> 条记录
+                    </div>
+                </div>
+
+                <!-- 搜索框 -->
+                <div class="mb-4">
+                    <form method="GET" class="flex gap-2">
+                        <input type="hidden" name="action" value="search_history">
+                        <input type="text" name="search" value="<?php echo htmlspecialchars($search_keyword ?? ''); ?>" 
+                            placeholder="搜索关键词..." 
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <button type="submit" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <?php if (!empty($search_keyword)): ?>
+                            <a href="?action=search_history" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        <?php endif; ?>
+                    </form>
+                </div>
+
+                <!-- 热门搜索统计 -->
+                <?php if (!empty($popular_searches)): ?>
+                    <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">热门搜索关键词（Top 20）</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <?php foreach ($popular_searches as $popular): ?>
+                                <a href="?action=search_history&search=<?php echo urlencode($popular['search_query']); ?>" 
+                                   class="inline-flex items-center px-3 py-1 bg-white border border-blue-200 rounded-full text-sm text-gray-700 hover:bg-blue-100 transition-colors">
+                                    <span class="font-medium"><?php echo htmlspecialchars($popular['search_query']); ?></span>
+                                    <span class="ml-2 text-xs text-gray-500"><?php echo $popular['search_count']; ?>次</span>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- 搜索记录列表 -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">搜索关键词</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">搜索类型</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">IP地址</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">结果数</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">搜索时间</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <?php if (empty($search_records)): ?>
+                                <tr>
+                                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">暂无搜索记录</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($search_records as $record): ?>
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo $record['id']; ?></td>
+                                        <td class="px-4 py-3 text-sm text-gray-900">
+                                            <a href="index.php?q=<?php echo urlencode($record['search_query']); ?>" 
+                                               target="_blank"
+                                               class="text-blue-600 hover:text-blue-800 hover:underline">
+                                                <?php echo htmlspecialchars($record['search_query']); ?>
+                                            </a>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <?php 
+                                            $type_map = ['all' => '全部', 'title' => '书名', 'author' => '作者', 'description' => '简介'];
+                                            echo $type_map[$record['search_type']] ?? $record['search_type'];
+                                            ?>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                            <?php echo htmlspecialchars($record['username'] ?? '游客'); ?>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                            <?php echo htmlspecialchars($record['ip_address'] ?? '未知'); ?>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <?php echo number_format($record['results_count']); ?>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <?php echo date('Y-m-d H:i:s', strtotime($record['search_time'])); ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                <?php if ($total_pages > 1): ?>
+                    <?php
+                    $base_params = ['action' => 'search_history'];
+                    if (!empty($search_keyword)) {
+                        $base_params['search'] = $search_keyword;
+                    }
+                    echo render_pagination($page, $total_pages, $total_search_records, $limit, [
+                        'base_params' => $base_params,
+                        'preserve_params' => []
+                    ]);
+                    ?>
+                <?php endif; ?>
+            </div>
 
         <?php elseif ($action === 'tags'): ?>
             <!-- 标签管理 -->
