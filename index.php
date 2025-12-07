@@ -252,12 +252,12 @@ $download_ranking_books = [];
 
 // 处理热门搜索页面
 if ($action === 'popular_searches') {
-    $popular_searches_list = get_popular_searches(100);
+    $popular_searches_list = get_popular_searches(24);
 }
 
 // 处理下载排行页面
 if ($action === 'download_ranking') {
-    $download_ranking_books = get_download_ranking(100);
+    $download_ranking_books = get_download_ranking(24);
 }
 
 // 获取电子书详情
