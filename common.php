@@ -541,27 +541,27 @@ function log_search_history($query, $type = 'all', $results_count = 0, $user_id 
 
 /**
  * 获取热门搜索关键词（按搜索次数排序）
- * @param int $limit 返回数量，默认10
+ * @param int $limit 返回数量，默认20
  * @return array
  */
-function get_popular_searches($limit = 10)
+function get_popular_searches($limit = 20)
 {
     global $pdo;
     try {
         // 获取热门搜索关键词统计
         $stmt = $pdo->prepare("
-       SELECT 
-           search_query,
-           COUNT(*) as search_count,
-           COUNT(DISTINCT user_id) as user_count,
-           COUNT(DISTINCT ip_address) as ip_count
-       FROM search_history
-       WHERE search_query != ''
-       GROUP BY search_query
-       ORDER BY search_count DESC
-       LIMIT 10
-   ");
-        $stmt->execute();
+            SELECT 
+                search_query,
+                COUNT(*) as search_count,
+                COUNT(DISTINCT user_id) as user_count,
+                COUNT(DISTINCT ip_address) as ip_count
+            FROM search_history
+            WHERE search_query != ''
+            GROUP BY search_query
+            ORDER BY search_count DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log('获取热门搜索失败: ' . $e->getMessage());
@@ -579,18 +579,18 @@ function get_download_ranking($limit = 20)
     global $pdo;
 
     try {
-         // 获取累计下载最高的10本书
-         $stmt = $pdo->prepare("
-         SELECT 
-             b.*,
-             COUNT(dl.id) as download_count
-         FROM books b
-         LEFT JOIN download_logs dl ON b.id = dl.book_id
-         GROUP BY b.id, b.title, b.author
-         ORDER BY download_count DESC
-         LIMIT 10
-     ");
-     $stmt->execute();
+        // 获取累计下载最高的10本书
+        $stmt = $pdo->prepare("
+            SELECT 
+                b.*,
+                COUNT(dl.id) as download_count
+            FROM books b
+            LEFT JOIN download_logs dl ON b.id = dl.book_id
+            GROUP BY b.id, b.title, b.author
+            ORDER BY download_count DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log('获取下载排行失败: ' . $e->getMessage());
