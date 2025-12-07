@@ -549,7 +549,7 @@ function get_popular_searches($limit = 20)
     global $pdo;
     try {
         // 获取热门搜索关键词统计
-        $stmt = $pdo->prepare("
+        $sql = "
             SELECT 
                 search_query,
                 COUNT(*) as search_count,
@@ -559,9 +559,8 @@ function get_popular_searches($limit = 20)
             WHERE search_query != ''
             GROUP BY search_query
             ORDER BY search_count DESC
-            LIMIT ?
-        ");
-        $stmt->execute([$limit]);
+            LIMIT $limit";
+        $stmt = $pdo->query($sql);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log('获取热门搜索失败: ' . $e->getMessage());
@@ -577,10 +576,9 @@ function get_popular_searches($limit = 20)
 function get_download_ranking($limit = 20)
 {
     global $pdo;
-
     try {
         // 获取累计下载最高的10本书
-        $stmt = $pdo->prepare("
+        $sql = "
             SELECT 
                 b.*,
                 COUNT(dl.id) as download_count
@@ -588,9 +586,9 @@ function get_download_ranking($limit = 20)
             LEFT JOIN download_logs dl ON b.id = dl.book_id
             GROUP BY b.id, b.title, b.author
             ORDER BY download_count DESC
-            LIMIT ?
-        ");
-        $stmt->execute([$limit]);
+            LIMIT $limit
+        ";
+        $stmt = $pdo->query($sql);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log('获取下载排行失败: ' . $e->getMessage());
