@@ -624,6 +624,209 @@ function get_download_ranking($limit = 20)
     }
 }
 
+/**
+ * 获取随机书籍（优化版本，适用于百万级数据）
+ * 
+ * 优化说明：
+ * 1. 使用子查询先获取有封面书籍的数量和ID范围
+ * 2. 生成随机ID范围，避免使用 ORDER BY RAND() 导致的性能问题
+ * 3. 这种方法比 ORDER BY RAND() LIMIT N 快得多，特别是在大数据集上
+ * 
+ * @param int $limit 返回数量，默认 50
+ * @return array 随机书籍列表
+ */
+function get_random_books($limit = 50)
+{
+    global $pdo;
+    
+    $limit = max(1, min(100, (int)$limit)); // 限制在1-100之间
+    
+    try {
+        // 方法：使用 TABLESAMPLE 或者随机ID范围
+        // 由于 MySQL 不支持 TABLESAMPLE，我们使用优化后的随机ID方法
+        
+        // 第一步：获取有封面书籍的ID范围和总数
+        $stats_sql = "
+            SELECT 
+                MIN(id) as min_id,
+                MAX(id) as max_id,
+                COUNT(*) as total_count
+            FROM books
+            WHERE cover_url IS NOT NULL 
+            AND cover_url != ''
+            AND cover_url != 'null'
+        ";
+        $stmt = $pdo->query($stats_sql);
+        $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$stats || $stats['total_count'] == 0) {
+            return [];
+        }
+        
+        $min_id = (int)$stats['min_id'];
+        $max_id = (int)$stats['max_id'];
+        $total_count = (int)$stats['total_count'];
+        
+        // 如果总数小于需要的数量，直接返回全部
+        if ($total_count <= $limit) {
+            $sql = "
+                SELECT * FROM books
+                WHERE cover_url IS NOT NULL 
+                AND cover_url != ''
+                AND cover_url != 'null'
+                ORDER BY id DESC
+                LIMIT :limit
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+        
+        // 第二步：生成随机ID，使用多次尝试确保获取足够的记录
+        // 为了避免ID不连续的问题，我们使用更大的随机范围，然后去重
+        $attempts = min(10, ceil($limit * 2 / ($max_id - $min_id + 1) * 10) + 5); // 尝试次数
+        $random_ids = [];
+        
+        // 生成随机ID数组
+        for ($i = 0; $i < $limit * 3 && count($random_ids) < $limit * 2; $i++) {
+            $random_id = mt_rand($min_id, $max_id);
+            $random_ids[$random_id] = true;
+        }
+        
+        $id_list = array_keys($random_ids);
+        
+        if (empty($id_list)) {
+            return [];
+        }
+        
+        // 第三步：使用 IN 查询获取这些ID对应的书籍（只取有封面的）
+        $placeholders = implode(',', array_fill(0, count($id_list), '?'));
+        $sql = "
+            SELECT * FROM books
+            WHERE id IN ($placeholders)
+            AND cover_url IS NOT NULL 
+            AND cover_url != ''
+            AND cover_url != 'null'
+            LIMIT :limit
+        ";
+        
+        $stmt = $pdo->prepare($sql);
+        foreach ($id_list as $index => $id) {
+            $stmt->bindValue($index + 1, $id, PDO::PARAM_INT);
+        }
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // 如果获取的数量不足，使用随机排序补充
+        if (count($books) < $limit) {
+            $remaining = $limit - count($books);
+            $existing_ids = array_column($books, 'id');
+            
+            if (!empty($existing_ids)) {
+                $existing_placeholders = implode(',', array_fill(0, count($existing_ids), '?'));
+                $supplement_sql = "
+                    SELECT * FROM books
+                    WHERE id NOT IN ($existing_placeholders)
+                    AND cover_url IS NOT NULL 
+                    AND cover_url != ''
+                    AND cover_url != 'null'
+                    ORDER BY RAND()
+                    LIMIT :limit
+                ";
+                
+                $supplement_stmt = $pdo->prepare($supplement_sql);
+                foreach ($existing_ids as $index => $id) {
+                    $supplement_stmt->bindValue($index + 1, $id, PDO::PARAM_INT);
+                }
+                $supplement_stmt->bindValue(':limit', $remaining, PDO::PARAM_INT);
+                $supplement_stmt->execute();
+                
+                $supplement_books = $supplement_stmt->fetchAll(PDO::FETCH_ASSOC);
+                $books = array_merge($books, $supplement_books);
+            }
+        }
+        
+        // 随机打乱结果
+        shuffle($books);
+        
+        // 只返回需要的数量
+        return array_slice($books, 0, $limit);
+        
+    } catch (PDOException $e) {
+        error_log('获取随机书籍失败: ' . $e->getMessage());
+        // 如果优化方法失败，回退到简单方法（虽然慢，但至少能工作）
+        try {
+            $sql = "
+                SELECT * FROM books
+                WHERE cover_url IS NOT NULL 
+                AND cover_url != ''
+                AND cover_url != 'null'
+                ORDER BY RAND()
+                LIMIT :limit
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e2) {
+            error_log('获取随机书籍回退方法也失败: ' . $e2->getMessage());
+            return [];
+        }
+    }
+}
+
+/**
+ * 获取最新书籍
+ * 
+ * @param int $limit 返回数量，默认 20
+ * @param int $offset 偏移量，默认 0
+ * @return array 最新书籍列表
+ */
+function get_latest_books($limit = 20, $offset = 0)
+{
+    global $pdo;
+    
+    $limit = max(1, (int)$limit);
+    $offset = max(0, (int)$offset);
+    
+    try {
+        $sql = "
+            SELECT * FROM books
+            ORDER BY id DESC
+            LIMIT :limit OFFSET :offset
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('获取最新书籍失败: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * 获取最新书籍总数
+ * 
+ * @return int 总数
+ */
+function get_latest_books_count()
+{
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM books");
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log('获取最新书籍总数失败: ' . $e->getMessage());
+        return 0;
+    }
+}
+
 // ============================================
 // 点赞和收藏相关函数
 // ============================================
