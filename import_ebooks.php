@@ -185,9 +185,9 @@ function extract_metadata(string $file_path, string $md5, string $cover_dir): ?a
     $pathinfo = pathinfo($file_path);
     if (isset($pathinfo['extension']) && strtolower($pathinfo['extension']) === 'txt') {
         $meta[ 'title' ] = $pathinfo['filename'];
-        // 读取文件内容的前300个字符作为描述
+        // 读取文件内容的前300个字符作为描述（只读取前10KB，足够提取简介）
         if (is_readable($file_path)) {
-            $content = read_txt_file_as_utf8($file_path);
+            $content = read_txt_file_as_utf8($file_path, 10240); // 只读取前10KB
             // 使用 preg_replace 去除所有空白字符（包括空格、换行、回车、制表符等）
             $content = trim( preg_replace('/[\s\x{3000}]+/u', ' ', $content) );
             if ($content !== false) {
@@ -270,15 +270,39 @@ function copy_and_delete(string $src, string $dst): bool {
     return false;
 }
 
-function read_txt_file_as_utf8($filename) {
+/**
+ * 读取TXT文件并转换为UTF-8编码（优化：支持只读取文件开头部分，适用于大文件）
+ * 
+ * @param string $filename 文件路径
+ * @param int|null $max_bytes 最大读取字节数，null表示读取全部（默认null）
+ * @return string UTF-8编码的文件内容
+ * @throws Exception 文件不存在或无法读取时抛出异常
+ */
+function read_txt_file_as_utf8($filename, ?int $max_bytes = null) {
     if (!file_exists($filename)) {
         throw new Exception("文件不存在: $filename");
     }
 
-    // 1. 以二进制方式读取原始内容
-    $content = file_get_contents($filename);
-    if ($content === false) {
-        throw new Exception("无法读取文件: $filename");
+    // 1. 使用文件句柄读取，支持限制读取字节数
+    $handle = fopen($filename, 'rb');
+    if ($handle === false) {
+        throw new Exception("无法打开文件: $filename");
+    }
+
+    try {
+        // 如果指定了最大字节数，只读取指定长度；否则读取全部
+        if ($max_bytes !== null && $max_bytes > 0) {
+            $content = fread($handle, $max_bytes);
+        } else {
+            // 读取全部内容（适用于小文件）
+            $content = stream_get_contents($handle);
+        }
+        
+        if ($content === false) {
+            throw new Exception("无法读取文件: $filename");
+        }
+    } finally {
+        fclose($handle);
     }
 
     // 2. 检测编码（注意：mb_detect_encoding 可能不完美）
