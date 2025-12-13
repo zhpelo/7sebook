@@ -625,6 +625,354 @@ function get_download_ranking($limit = 20)
 }
 
 // ============================================
+// 点赞和收藏相关函数
+// ============================================
+
+/**
+ * 检查用户是否已点赞某本书
+ * 
+ * @param int $user_id 用户ID
+ * @param int $book_id 书籍ID
+ * @return bool 是否已点赞
+ */
+function is_book_liked($user_id, $book_id)
+{
+    global $pdo;
+    
+    if (!$user_id || !$book_id) {
+        return false;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT 1 FROM book_likes WHERE user_id = ? AND book_id = ? LIMIT 1");
+        $stmt->execute([$user_id, $book_id]);
+        return (bool) $stmt->fetch();
+    } catch (PDOException $e) {
+        error_log('检查点赞状态失败: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * 添加点赞
+ * 
+ * @param int $user_id 用户ID
+ * @param int $book_id 书籍ID
+ * @return array{success: bool, message: string}
+ */
+function add_book_like($user_id, $book_id)
+{
+    global $pdo;
+    
+    if (!$user_id || !$book_id) {
+        return ['success' => false, 'message' => '参数错误'];
+    }
+    
+    // 检查是否已点赞
+    if (is_book_liked($user_id, $book_id)) {
+        return ['success' => false, 'message' => '您已经点赞过这本书了'];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("INSERT INTO book_likes (user_id, book_id) VALUES (?, ?)");
+        $stmt->execute([$user_id, $book_id]);
+        return ['success' => true, 'message' => '点赞成功'];
+    } catch (PDOException $e) {
+        // 如果是唯一约束冲突，说明已点赞
+        if ($e->getCode() == 23000) {
+            return ['success' => false, 'message' => '您已经点赞过这本书了'];
+        }
+        error_log('添加点赞失败: ' . $e->getMessage());
+        return ['success' => false, 'message' => '操作失败，请稍后重试'];
+    }
+}
+
+/**
+ * 取消点赞
+ * 
+ * @param int $user_id 用户ID
+ * @param int $book_id 书籍ID
+ * @return array{success: bool, message: string}
+ */
+function remove_book_like($user_id, $book_id)
+{
+    global $pdo;
+    
+    if (!$user_id || !$book_id) {
+        return ['success' => false, 'message' => '参数错误'];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("DELETE FROM book_likes WHERE user_id = ? AND book_id = ?");
+        $stmt->execute([$user_id, $book_id]);
+        if ($stmt->rowCount() > 0) {
+            return ['success' => true, 'message' => '已取消点赞'];
+        } else {
+            return ['success' => false, 'message' => '您还未点赞过这本书'];
+        }
+    } catch (PDOException $e) {
+        error_log('取消点赞失败: ' . $e->getMessage());
+        return ['success' => false, 'message' => '操作失败，请稍后重试'];
+    }
+}
+
+/**
+ * 获取书籍的点赞数量
+ * 
+ * @param int $book_id 书籍ID
+ * @return int 点赞数量
+ */
+function get_book_like_count($book_id)
+{
+    global $pdo;
+    
+    if (!$book_id) {
+        return 0;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM book_likes WHERE book_id = ?");
+        $stmt->execute([$book_id]);
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log('获取点赞数量失败: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * 检查用户是否已收藏某本书
+ * 
+ * @param int $user_id 用户ID
+ * @param int $book_id 书籍ID
+ * @return bool 是否已收藏
+ */
+function is_book_favorited($user_id, $book_id)
+{
+    global $pdo;
+    
+    if (!$user_id || !$book_id) {
+        return false;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT 1 FROM book_favorites WHERE user_id = ? AND book_id = ? LIMIT 1");
+        $stmt->execute([$user_id, $book_id]);
+        return (bool) $stmt->fetch();
+    } catch (PDOException $e) {
+        error_log('检查收藏状态失败: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * 添加收藏
+ * 
+ * @param int $user_id 用户ID
+ * @param int $book_id 书籍ID
+ * @return array{success: bool, message: string}
+ */
+function add_book_favorite($user_id, $book_id)
+{
+    global $pdo;
+    
+    if (!$user_id || !$book_id) {
+        return ['success' => false, 'message' => '参数错误'];
+    }
+    
+    // 检查是否已收藏
+    if (is_book_favorited($user_id, $book_id)) {
+        return ['success' => false, 'message' => '您已经收藏过这本书了'];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("INSERT INTO book_favorites (user_id, book_id) VALUES (?, ?)");
+        $stmt->execute([$user_id, $book_id]);
+        return ['success' => true, 'message' => '收藏成功'];
+    } catch (PDOException $e) {
+        // 如果是唯一约束冲突，说明已收藏
+        if ($e->getCode() == 23000) {
+            return ['success' => false, 'message' => '您已经收藏过这本书了'];
+        }
+        error_log('添加收藏失败: ' . $e->getMessage());
+        return ['success' => false, 'message' => '操作失败，请稍后重试'];
+    }
+}
+
+/**
+ * 取消收藏
+ * 
+ * @param int $user_id 用户ID
+ * @param int $book_id 书籍ID
+ * @return array{success: bool, message: string}
+ */
+function remove_book_favorite($user_id, $book_id)
+{
+    global $pdo;
+    
+    if (!$user_id || !$book_id) {
+        return ['success' => false, 'message' => '参数错误'];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("DELETE FROM book_favorites WHERE user_id = ? AND book_id = ?");
+        $stmt->execute([$user_id, $book_id]);
+        if ($stmt->rowCount() > 0) {
+            return ['success' => true, 'message' => '已取消收藏'];
+        } else {
+            return ['success' => false, 'message' => '您还未收藏过这本书'];
+        }
+    } catch (PDOException $e) {
+        error_log('取消收藏失败: ' . $e->getMessage());
+        return ['success' => false, 'message' => '操作失败，请稍后重试'];
+    }
+}
+
+/**
+ * 获取书籍的收藏数量
+ * 
+ * @param int $book_id 书籍ID
+ * @return int 收藏数量
+ */
+function get_book_favorite_count($book_id)
+{
+    global $pdo;
+    
+    if (!$book_id) {
+        return 0;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM book_favorites WHERE book_id = ?");
+        $stmt->execute([$book_id]);
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log('获取收藏数量失败: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * 获取用户的点赞记录
+ * 
+ * @param int $user_id 用户ID
+ * @param int $limit 返回数量
+ * @param int $offset 偏移量
+ * @return array 点赞的书籍列表
+ */
+function get_user_liked_books($user_id, $limit = 20, $offset = 0)
+{
+    global $pdo;
+    
+    if (!$user_id) {
+        return [];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT b.*, bl.created_at as liked_at
+            FROM book_likes bl
+            INNER JOIN books b ON b.id = bl.book_id
+            WHERE bl.user_id = :user_id
+            ORDER BY bl.created_at DESC
+            LIMIT :limit OFFSET :offset
+        ");
+        $stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('获取用户点赞记录失败: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * 获取用户的收藏记录
+ * 
+ * @param int $user_id 用户ID
+ * @param int $limit 返回数量
+ * @param int $offset 偏移量
+ * @return array 收藏的书籍列表
+ */
+function get_user_favorited_books($user_id, $limit = 20, $offset = 0)
+{
+    global $pdo;
+    
+    if (!$user_id) {
+        return [];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT b.*, bf.created_at as favorited_at
+            FROM book_favorites bf
+            INNER JOIN books b ON b.id = bf.book_id
+            WHERE bf.user_id = :user_id
+            ORDER BY bf.created_at DESC
+            LIMIT :limit OFFSET :offset
+        ");
+        $stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('获取用户收藏记录失败: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * 获取用户点赞记录总数
+ * 
+ * @param int $user_id 用户ID
+ * @return int 总数
+ */
+function get_user_liked_books_count($user_id)
+{
+    global $pdo;
+    
+    if (!$user_id) {
+        return 0;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM book_likes WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log('获取用户点赞记录总数失败: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * 获取用户收藏记录总数
+ * 
+ * @param int $user_id 用户ID
+ * @return int 总数
+ */
+function get_user_favorited_books_count($user_id)
+{
+    global $pdo;
+    
+    if (!$user_id) {
+        return 0;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM book_favorites WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log('获取用户收藏记录总数失败: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+// ============================================
 // 工具函数
 // ============================================
 
@@ -902,7 +1250,7 @@ function render_pagination($current_page, $total_pages, $total_records = 0, $lim
 
     ob_start();
 ?>
-    <div class="pagination-container <?php echo htmlspecialchars($options['class_prefix']); ?>">
+    <div class="pagination-container mt-8 <?php echo htmlspecialchars($options['class_prefix']); ?>">
         <?php if ($options['show_info']): ?>
             <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
                 <div class="text-sm text-gray-700">

@@ -252,12 +252,40 @@ $download_ranking_books = [];
 
 // 处理热门搜索页面
 if ($action === 'popular_searches') {
-    $popular_searches_list = get_popular_searches(24);
+    $popular_searches_list = get_popular_searches(50);
 }
 
 // 处理下载排行页面
 if ($action === 'download_ranking') {
-    $download_ranking_books = get_download_ranking(24);
+    $download_ranking_books = get_download_ranking();
+}
+
+// 处理点赞记录页面
+$user_liked_books = [];
+$user_liked_total = 0;
+if ($action === 'my_likes' && is_logged_in()) {
+    $user_id = get_user_id();
+    $page = max(1, intval($_GET['page'] ?? 1));
+    $limit = 20;
+    $offset = ($page - 1) * $limit;
+    
+    $user_liked_total = get_user_liked_books_count($user_id);
+    $user_liked_books = get_user_liked_books($user_id, $limit, $offset);
+    $total_liked_pages = ceil($user_liked_total / $limit);
+}
+
+// 处理收藏记录页面
+$user_favorited_books = [];
+$user_favorited_total = 0;
+if ($action === 'my_favorites' && is_logged_in()) {
+    $user_id = get_user_id();
+    $page = max(1, intval($_GET['page'] ?? 1));
+    $limit = 20;
+    $offset = ($page - 1) * $limit;
+    
+    $user_favorited_total = get_user_favorited_books_count($user_id);
+    $user_favorited_books = get_user_favorited_books($user_id, $limit, $offset);
+    $total_favorited_pages = ceil($user_favorited_total / $limit);
 }
 
 // 获取电子书详情
@@ -290,6 +318,19 @@ if ($action === 'detail' && $book_id) {
         ");
         $stmt->execute([$book_id]);
         $related_books = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // 获取点赞和收藏状态
+        $book['like_count'] = get_book_like_count($book_id);
+        $book['favorite_count'] = get_book_favorite_count($book_id);
+        
+        if (is_logged_in()) {
+            $user_id = get_user_id();
+            $book['is_liked'] = is_book_liked($user_id, $book_id);
+            $book['is_favorited'] = is_book_favorited($user_id, $book_id);
+        } else {
+            $book['is_liked'] = false;
+            $book['is_favorited'] = false;
+        }
     }
 }
 
@@ -376,6 +417,82 @@ if ($action === 'download' && $book_id && is_logged_in()) {
             }
         }
     }
+}
+
+// 处理点赞请求（AJAX）
+if ($action === 'like' && is_logged_in() && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    
+    $user_id = get_user_id();
+    $book_id = intval($_POST['book_id'] ?? 0);
+    
+    if ($book_id <= 0) {
+        echo json_encode(['success' => false, 'message' => '无效的书籍ID']);
+        exit;
+    }
+    
+    $result = add_book_like($user_id, $book_id);
+    $result['like_count'] = get_book_like_count($book_id);
+    
+    echo json_encode($result);
+    exit;
+}
+
+// 处理取消点赞请求（AJAX）
+if ($action === 'unlike' && is_logged_in() && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    
+    $user_id = get_user_id();
+    $book_id = intval($_POST['book_id'] ?? 0);
+    
+    if ($book_id <= 0) {
+        echo json_encode(['success' => false, 'message' => '无效的书籍ID']);
+        exit;
+    }
+    
+    $result = remove_book_like($user_id, $book_id);
+    $result['like_count'] = get_book_like_count($book_id);
+    
+    echo json_encode($result);
+    exit;
+}
+
+// 处理收藏请求（AJAX）
+if ($action === 'favorite' && is_logged_in() && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    
+    $user_id = get_user_id();
+    $book_id = intval($_POST['book_id'] ?? 0);
+    
+    if ($book_id <= 0) {
+        echo json_encode(['success' => false, 'message' => '无效的书籍ID']);
+        exit;
+    }
+    
+    $result = add_book_favorite($user_id, $book_id);
+    $result['favorite_count'] = get_book_favorite_count($book_id);
+    
+    echo json_encode($result);
+    exit;
+}
+
+// 处理取消收藏请求（AJAX）
+if ($action === 'unfavorite' && is_logged_in() && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    
+    $user_id = get_user_id();
+    $book_id = intval($_POST['book_id'] ?? 0);
+    
+    if ($book_id <= 0) {
+        echo json_encode(['success' => false, 'message' => '无效的书籍ID']);
+        exit;
+    }
+    
+    $result = remove_book_favorite($user_id, $book_id);
+    $result['favorite_count'] = get_book_favorite_count($book_id);
+    
+    echo json_encode($result);
+    exit;
 }
 
 // 搜索相关代码
@@ -1040,7 +1157,7 @@ if ($action === 'search') {
                         </div>
                     <?php endif; ?>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <h2 class="text-xl font-semibold text-gray-700 mb-4">基本信息</h2>
                             <div class="bg-gray-50 p-4 rounded-lg">
@@ -1052,6 +1169,26 @@ if ($action === 'search') {
                                     <label class="block text-gray-600 text-sm mb-1">注册时间</label>
                                     <div class="font-medium"><?php echo htmlspecialchars($user_info['created_at']); ?></div>
                                 </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-700 mb-4">我的记录</h2>
+                            <div class="bg-gray-50 p-4 rounded-lg space-y-3">
+                                <a href="?action=my_likes" class="flex items-center justify-between p-3 bg-white rounded-lg hover:bg-red-50 transition-colors border border-gray-200">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-heart text-red-500 mr-3" aria-hidden="true"></i>
+                                        <span class="text-gray-700 font-medium">我的点赞</span>
+                                    </div>
+                                    <span class="text-gray-500 text-sm"><?php echo get_user_liked_books_count(get_user_id()); ?> 本</span>
+                                </a>
+                                <a href="?action=my_favorites" class="flex items-center justify-between p-3 bg-white rounded-lg hover:bg-yellow-50 transition-colors border border-gray-200">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-star text-yellow-500 mr-3" aria-hidden="true"></i>
+                                        <span class="text-gray-700 font-medium">我的收藏</span>
+                                    </div>
+                                    <span class="text-gray-500 text-sm"><?php echo get_user_favorited_books_count(get_user_id()); ?> 本</span>
+                                </a>
                             </div>
                         </div>
 
@@ -1165,6 +1302,57 @@ if ($action === 'search') {
                                         <span class="text-sm sm:text-base text-gray-500">暂无标签</span>
                                     <?php endif; ?>
                                 </div>
+                            </div>
+
+                            <!-- 点赞、收藏、分享按钮 -->
+                            <div class="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                                <!-- 点赞按钮 -->
+                                <?php if (is_logged_in()): ?>
+                                    <button 
+                                        id="likeBtn" 
+                                        class="inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-lg font-semibold transition-colors min-h-[44px] focus:outline-none focus:ring-2 focus:ring-offset-2 <?php echo $book['is_liked'] ? 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500' : 'bg-gray-200 hover:bg-gray-300 text-gray-700 focus:ring-gray-500'; ?>"
+                                        onclick="toggleLike(<?php echo $book['id']; ?>)"
+                                        aria-label="点赞">
+                                        <i class="fas fa-heart mr-2" aria-hidden="true"></i>
+                                        <span>点赞</span>
+                                        <span id="likeCount" class="ml-2"><?php echo $book['like_count']; ?></span>
+                                    </button>
+                                    
+                                    <!-- 收藏按钮 -->
+                                    <button 
+                                        id="favoriteBtn" 
+                                        class="inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-lg font-semibold transition-colors min-h-[44px] focus:outline-none focus:ring-2 focus:ring-offset-2 <?php echo $book['is_favorited'] ? 'bg-yellow-600 hover:bg-yellow-700 text-white focus:ring-yellow-500' : 'bg-gray-200 hover:bg-gray-300 text-gray-700 focus:ring-gray-500'; ?>"
+                                        onclick="toggleFavorite(<?php echo $book['id']; ?>)"
+                                        aria-label="收藏">
+                                        <i class="fas fa-star mr-2" aria-hidden="true"></i>
+                                        <span>收藏</span>
+                                        <span id="favoriteCount" class="ml-2"><?php echo $book['favorite_count']; ?></span>
+                                    </button>
+                                <?php else: ?>
+                                    <a href="?action=login" 
+                                       class="inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-lg font-semibold transition-colors min-h-[44px] bg-gray-200 hover:bg-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                                       aria-label="登录后点赞">
+                                        <i class="fas fa-heart mr-2" aria-hidden="true"></i>
+                                        <span>点赞</span>
+                                        <span class="ml-2"><?php echo $book['like_count']; ?></span>
+                                    </a>
+                                    <a href="?action=login" 
+                                       class="inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-lg font-semibold transition-colors min-h-[44px] bg-gray-200 hover:bg-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                                       aria-label="登录后收藏">
+                                        <i class="fas fa-star mr-2" aria-hidden="true"></i>
+                                        <span>收藏</span>
+                                        <span class="ml-2"><?php echo $book['favorite_count']; ?></span>
+                                    </a>
+                                <?php endif; ?>
+                                
+                                <!-- 分享按钮 -->
+                                <button 
+                                    onclick="shareBook(<?php echo $book['id']; ?>, '<?php echo htmlspecialchars($book['title'], ENT_QUOTES); ?>')" 
+                                    class="inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-lg font-semibold transition-colors min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    aria-label="分享">
+                                    <i class="fas fa-share-alt mr-2" aria-hidden="true"></i>
+                                    <span>分享</span>
+                                </button>
                             </div>
 
                             <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
@@ -1423,6 +1611,126 @@ if ($action === 'search') {
                 <?php endif; ?>
             </div>
         </div>
+    <?php elseif ($action === 'my_likes' && is_logged_in()): ?>
+        <!-- 我的点赞记录页面 -->
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">
+                        <i class="fas fa-heart text-red-500 mr-2" aria-hidden="true"></i>我的点赞
+                    </h1>
+                    <div class="flex items-center gap-3">
+                        <a href="?action=profile" class="text-blue-600 hover:text-blue-800 text-sm sm:text-base">
+                            <i class="fas fa-user mr-1" aria-hidden="true"></i>个人资料
+                        </a>
+                        <a href="./" class="text-blue-600 hover:text-blue-800 text-sm sm:text-base">
+                            <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>返回首页
+                        </a>
+                    </div>
+                </div>
+                
+                <?php if (empty($user_liked_books)): ?>
+                    <div class="text-center py-12 sm:py-20">
+                        <i class="fas fa-heart text-5xl sm:text-6xl text-gray-300 mb-4" aria-hidden="true"></i>
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-600 mb-2">暂无点赞记录</h3>
+                        <p class="text-sm sm:text-base text-gray-500">您还没有点赞过任何书籍</p>
+                    </div>
+                <?php else: ?>
+                    <div class="mb-4">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                            <p class="text-sm sm:text-base text-gray-600">
+                                共找到 <span class="font-bold text-red-600"><?php echo $user_liked_total; ?></span> 本点赞的书籍
+                            </p>
+                            <!-- 布局切换按钮 -->
+                            <div class="flex items-center gap-1 sm:gap-2 bg-gray-100 rounded-lg p-0.5 sm:p-1" role="group" aria-label="切换布局">
+                                <button 
+                                    onclick="switchBookLayout('grid', 'myLikesList')" 
+                                    id="likesGridBtn" 
+                                    class="px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition min-h-[36px] sm:min-h-[40px] focus:outline-none focus:ring-2 focus:ring-blue-500 <?php echo $book_layout === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>" 
+                                    aria-label="网格布局"
+                                    aria-pressed="<?php echo $book_layout === 'grid' ? 'true' : 'false'; ?>">
+                                    <i class="fas fa-th mr-1" aria-hidden="true"></i><span class="hidden xs:inline">方格</span>
+                                </button>
+                                <button 
+                                    onclick="switchBookLayout('list', 'myLikesList')" 
+                                    id="likesListBtn" 
+                                    class="px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition min-h-[36px] sm:min-h-[40px] focus:outline-none focus:ring-2 focus:ring-blue-500 <?php echo $book_layout === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>" 
+                                    aria-label="列表布局"
+                                    aria-pressed="<?php echo $book_layout === 'list' ? 'true' : 'false'; ?>">
+                                    <i class="fas fa-list mr-1" aria-hidden="true"></i><span class="hidden xs:inline">列表</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <?php echo render_books_list($user_liked_books, $book_layout, '', 'myLikesList'); ?>
+                    <?php if (isset($total_liked_pages) && $total_liked_pages > 1): ?>
+                        <div class="mt-6">
+                            <?php echo render_pagination($page ?? 1, $total_liked_pages, $user_liked_total, 20, function($new_page) { return "?action=my_likes&page=$new_page"; }); ?>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php elseif ($action === 'my_favorites' && is_logged_in()): ?>
+        <!-- 我的收藏记录页面 -->
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">
+                        <i class="fas fa-star text-yellow-500 mr-2" aria-hidden="true"></i>我的收藏
+                    </h1>
+                    <div class="flex items-center gap-3">
+                        <a href="?action=profile" class="text-blue-600 hover:text-blue-800 text-sm sm:text-base">
+                            <i class="fas fa-user mr-1" aria-hidden="true"></i>个人资料
+                        </a>
+                        <a href="./" class="text-blue-600 hover:text-blue-800 text-sm sm:text-base">
+                            <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>返回首页
+                        </a>
+                    </div>
+                </div>
+                
+                <?php if (empty($user_favorited_books)): ?>
+                    <div class="text-center py-12 sm:py-20">
+                        <i class="fas fa-star text-5xl sm:text-6xl text-gray-300 mb-4" aria-hidden="true"></i>
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-600 mb-2">暂无收藏记录</h3>
+                        <p class="text-sm sm:text-base text-gray-500">您还没有收藏过任何书籍</p>
+                    </div>
+                <?php else: ?>
+                    <div class="mb-4">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                            <p class="text-sm sm:text-base text-gray-600">
+                                共找到 <span class="font-bold text-yellow-600"><?php echo $user_favorited_total; ?></span> 本收藏的书籍
+                            </p>
+                            <!-- 布局切换按钮 -->
+                            <div class="flex items-center gap-1 sm:gap-2 bg-gray-100 rounded-lg p-0.5 sm:p-1" role="group" aria-label="切换布局">
+                                <button 
+                                    onclick="switchBookLayout('grid', 'myFavoritesList')" 
+                                    id="favoritesGridBtn" 
+                                    class="px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition min-h-[36px] sm:min-h-[40px] focus:outline-none focus:ring-2 focus:ring-blue-500 <?php echo $book_layout === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>" 
+                                    aria-label="网格布局"
+                                    aria-pressed="<?php echo $book_layout === 'grid' ? 'true' : 'false'; ?>">
+                                    <i class="fas fa-th mr-1" aria-hidden="true"></i><span class="hidden xs:inline">方格</span>
+                                </button>
+                                <button 
+                                    onclick="switchBookLayout('list', 'myFavoritesList')" 
+                                    id="favoritesListBtn" 
+                                    class="px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm transition min-h-[36px] sm:min-h-[40px] focus:outline-none focus:ring-2 focus:ring-blue-500 <?php echo $book_layout === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'; ?>" 
+                                    aria-label="列表布局"
+                                    aria-pressed="<?php echo $book_layout === 'list' ? 'true' : 'false'; ?>">
+                                    <i class="fas fa-list mr-1" aria-hidden="true"></i><span class="hidden xs:inline">列表</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <?php echo render_books_list($user_favorited_books, $book_layout, '', 'myFavoritesList'); ?>
+                    <?php if (isset($total_favorited_pages) && $total_favorited_pages > 1): ?>
+                        <div class="mt-6">
+                            <?php echo render_pagination($page ?? 1, $total_favorited_pages, $user_favorited_total, 20, function($new_page) { return "?action=my_favorites&page=$new_page"; }); ?>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
     <?php else: ?>
         <!-- 搜索结果页 -->
         <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
@@ -1579,6 +1887,156 @@ if ($action === 'search') {
             
             // 重新加载页面以应用新布局
             location.reload();
+        }
+
+        // 点赞/取消点赞
+        function toggleLike(bookId) {
+            const likeBtn = document.getElementById('likeBtn');
+            const likeCountSpan = document.getElementById('likeCount');
+            const isLiked = likeBtn.classList.contains('bg-red-600');
+            
+            // 禁用按钮，防止重复点击
+            likeBtn.disabled = true;
+            
+            const action = isLiked ? 'unlike' : 'like';
+            const formData = new FormData();
+            formData.append('book_id', bookId);
+            
+            fetch(`?action=${action}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新按钮样式
+                    if (action === 'like') {
+                        likeBtn.classList.remove('bg-gray-200', 'hover:bg-gray-300', 'text-gray-700', 'focus:ring-gray-500');
+                        likeBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'text-white', 'focus:ring-red-500');
+                    } else {
+                        likeBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'text-white', 'focus:ring-red-500');
+                        likeBtn.classList.add('bg-gray-200', 'hover:bg-gray-300', 'text-gray-700', 'focus:ring-gray-500');
+                    }
+                    // 更新点赞数量
+                    if (likeCountSpan) {
+                        likeCountSpan.textContent = data.like_count || 0;
+                    }
+                } else {
+                    alert(data.message || '操作失败，请稍后重试');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('操作失败，请稍后重试');
+            })
+            .finally(() => {
+                likeBtn.disabled = false;
+            });
+        }
+
+        // 收藏/取消收藏
+        function toggleFavorite(bookId) {
+            const favoriteBtn = document.getElementById('favoriteBtn');
+            const favoriteCountSpan = document.getElementById('favoriteCount');
+            const isFavorited = favoriteBtn.classList.contains('bg-yellow-600');
+            
+            // 禁用按钮，防止重复点击
+            favoriteBtn.disabled = true;
+            
+            const action = isFavorited ? 'unfavorite' : 'favorite';
+            const formData = new FormData();
+            formData.append('book_id', bookId);
+            
+            fetch(`?action=${action}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新按钮样式
+                    if (action === 'favorite') {
+                        favoriteBtn.classList.remove('bg-gray-200', 'hover:bg-gray-300', 'text-gray-700', 'focus:ring-gray-500');
+                        favoriteBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700', 'text-white', 'focus:ring-yellow-500');
+                    } else {
+                        favoriteBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700', 'text-white', 'focus:ring-yellow-500');
+                        favoriteBtn.classList.add('bg-gray-200', 'hover:bg-gray-300', 'text-gray-700', 'focus:ring-gray-500');
+                    }
+                    // 更新收藏数量
+                    if (favoriteCountSpan) {
+                        favoriteCountSpan.textContent = data.favorite_count || 0;
+                    }
+                } else {
+                    alert(data.message || '操作失败，请稍后重试');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('操作失败，请稍后重试');
+            })
+            .finally(() => {
+                favoriteBtn.disabled = false;
+            });
+        }
+
+        // 分享书籍
+        function shareBook(bookId, bookTitle) {
+            const url = window.location.origin + window.location.pathname + `?action=detail&id=${bookId}`;
+            const text = `推荐一本好书：《${bookTitle}》`;
+            
+            // 检查是否支持 Web Share API
+            if (navigator.share) {
+                navigator.share({
+                    title: bookTitle,
+                    text: text,
+                    url: url
+                })
+                .catch(error => {
+                    if (error.name !== 'AbortError') {
+                        copyToClipboard(url);
+                    }
+                });
+            } else {
+                // 不支持 Web Share API，复制链接到剪贴板
+                copyToClipboard(url);
+            }
+        }
+
+        // 复制到剪贴板
+        function copyToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('链接已复制到剪贴板！');
+                }).catch(() => {
+                    fallbackCopyToClipboard(text);
+                });
+            } else {
+                fallbackCopyToClipboard(text);
+            }
+        }
+
+        // 备用复制方法
+        function fallbackCopyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    alert('链接已复制到剪贴板！');
+                } else {
+                    prompt('请复制以下链接：', text);
+                }
+            } catch (err) {
+                prompt('请复制以下链接：', text);
+            }
+            
+            document.body.removeChild(textArea);
         }
     </script>
 </body>
