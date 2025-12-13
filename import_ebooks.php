@@ -187,9 +187,11 @@ function extract_metadata(string $file_path, string $md5, string $cover_dir): ?a
         $meta[ 'title' ] = $pathinfo['filename'];
         // 读取文件内容的前300个字符作为描述（只读取前10KB，足够提取简介）
         if (is_readable($file_path)) {
-            $content = read_txt_file_as_utf8($file_path, 10240); // 只读取前10KB
+            $content = readFirst100KBAsUTF8($file_path);
             // 使用 preg_replace 去除所有空白字符（包括空格、换行、回车、制表符等）
-            $content = trim( preg_replace('/[\s\x{3000}]+/u', ' ', $content) );
+         
+            $content = trim( preg_replace('/\s+/', ' ', $content) );
+
             if ($content !== false) {
                 // 兼容中文的字符截取
                 $meta['description'] = mb_strlen($content, 'UTF-8') > 300 ? mb_substr($content, 0, 300, 'UTF-8')."..." : $content;
@@ -270,143 +272,28 @@ function copy_and_delete(string $src, string $dst): bool {
     return false;
 }
 
-/**
- * 读取TXT文件并转换为UTF-8编码（优化：支持只读取文件开头部分，适用于大文件）
- * 
- * @param string $filename 文件路径
- * @param int|null $max_bytes 最大读取字节数，null表示读取全部（默认null）
- * @return string UTF-8编码的文件内容
- * @throws Exception 文件不存在或无法读取时抛出异常
- */
-function read_txt_file_as_utf8($filename, ?int $max_bytes = null) {
+function readFirst100KBAsUTF8($filename) {
     if (!file_exists($filename)) {
-        throw new Exception("文件不存在: $filename");
+        throw new Exception("File not found: $filename");
     }
 
-    // 1. 使用文件句柄读取，支持限制读取字节数
     $handle = fopen($filename, 'rb');
-    if ($handle === false) {
-        throw new Exception("无法打开文件: $filename");
+    $raw = fread($handle, 100 * 1024);
+    fclose($handle);
+
+    // 移除 UTF-8 BOM（如果存在）
+    if (substr($raw, 0, 3) === "\xEF\xBB\xBF") {
+        $raw = substr($raw, 3);
     }
 
-    try {
-        // 如果指定了最大字节数，只读取指定长度；否则读取全部
-        if ($max_bytes !== null && $max_bytes > 0) {
-            $content = fread($handle, $max_bytes);
-        } else {
-            // 读取全部内容（适用于小文件）
-            $content = stream_get_contents($handle);
-        }
-        
-        if ($content === false) {
-            throw new Exception("无法读取文件: $filename");
-        }
-    } finally {
-        fclose($handle);
-    }
+    // 检测编码
+    $encoding = mb_detect_encoding($raw, ['UTF-8', 'GBK', 'BIG5', 'ASCII'], true);
 
-    // 2. 改进的编码检测逻辑（优先检测中文编码，解决乱码问题）
-    $detectedEncoding = false;
-    
-    // 2.1 首先检查是否为有效的UTF-8
-    if (mb_check_encoding($content, 'UTF-8')) {
-        // 检查是否包含UTF-8替换字符（说明之前编码识别错误导致的乱码）
-        if (!preg_match('/[\x{FFFD}]/u', $content)) {
-            $detectedEncoding = 'UTF-8';
-        }
-    }
-    
-    // 2.2 如果不是UTF-8，优先尝试中文编码（GBK/GB2312最常见）
-    if ($detectedEncoding === false) {
-        // 中文编码优先级：GBK > GB2312 > GB18030 > BIG5
-        $chineseEncodings = ['GBK', 'GB2312', 'GB18030', 'BIG5'];
-        $bestEncoding = null;
-        $bestScore = 0;
-        
-        foreach ($chineseEncodings as $encoding) {
-            // 尝试转换并验证结果
-            $converted = @mb_convert_encoding($content, 'UTF-8', $encoding);
-            if ($converted !== false && mb_check_encoding($converted, 'UTF-8')) {
-                // 检查是否包含替换字符（乱码标记）
-                if (preg_match('/[\x{FFFD}]/u', $converted)) {
-                    continue; // 包含乱码，跳过这个编码
-                }
-                
-                // 计算有效中文字符的得分
-                $score = 0;
-                // 中文字符范围
-                if (preg_match_all('/[\x{4e00}-\x{9fff}]/u', $converted, $matches)) {
-                    $score += count($matches[0]);
-                }
-                // 中文标点符号
-                if (preg_match_all('/[\x{3000}-\x{303f}\x{ff00}-\x{ffef}]/u', $converted, $matches)) {
-                    $score += count($matches[0]) * 0.5;
-                }
-                
-                // 选择得分最高的编码
-                if ($score > $bestScore) {
-                    $bestScore = $score;
-                    $bestEncoding = $encoding;
-                }
-            }
-        }
-        
-        if ($bestEncoding !== null) {
-            $detectedEncoding = $bestEncoding;
-        }
-    }
-    
-    // 2.3 如果还是没检测到，使用mb_detect_encoding作为备选（调整优先级）
-    if ($detectedEncoding === false) {
-        $encodings = [
-            'GBK', 'GB2312', 'GB18030', 'BIG5',  // 优先中文编码
-            'UTF-8',
-            'UTF-16LE', 'UTF-16BE',
-            'SJIS', 'EUC-JP',
-            'EUC-KR',
-            'ISO-8859-1', 'ISO-8859-15',
-            'Windows-1251', 'Windows-1252',
-            'ASCII'
-        ];
-        
-        $detectedEncoding = mb_detect_encoding($content, $encodings, true);
-    }
-    
-    // 2.4 如果仍然无法检测，默认尝试GBK（中文文件最常见）
-    if ($detectedEncoding === false) {
-        $detectedEncoding = 'GBK';
-    }
-
-    // 3. 转换为 UTF-8 并验证结果
-    if ($detectedEncoding !== 'UTF-8') {
-        $converted = @mb_convert_encoding($content, 'UTF-8', $detectedEncoding);
-        if ($converted !== false && mb_check_encoding($converted, 'UTF-8')) {
-            // 检查转换结果是否包含乱码标记
-            if (!preg_match('/[\x{FFFD}]/u', $converted)) {
-                $content = $converted;
-            } else {
-                // 如果包含乱码，尝试其他编码（GBK作为最后备选）
-                if ($detectedEncoding !== 'GBK') {
-                    $fallback = @mb_convert_encoding($content, 'UTF-8', 'GBK');
-                    if ($fallback !== false && mb_check_encoding($fallback, 'UTF-8') && 
-                        !preg_match('/[\x{FFFD}]/u', $fallback)) {
-                        $content = $fallback;
-                    } else {
-                        $content = $converted; // 使用原始转换结果
-                    }
-                } else {
-                    $content = $converted; // 已经是GBK了，使用转换结果
-                }
-            }
-        } else {
-            // 转换失败，尝试GBK作为最后备选
-            if ($detectedEncoding !== 'GBK') {
-                $fallback = @mb_convert_encoding($content, 'UTF-8', 'GBK');
-                if ($fallback !== false && mb_check_encoding($fallback, 'UTF-8')) {
-                    $content = $fallback;
-                }
-            }
-        }
+    // 转换为 UTF-8
+    if ($encoding && $encoding !== 'UTF-8') {
+        $content = mb_convert_encoding($raw, 'UTF-8', $encoding);
+    } else {
+        $content = $raw; // 已是 UTF-8 或无法识别（按原样处理）
     }
 
     return $content;
