@@ -573,22 +573,50 @@ function get_popular_searches($limit = 20)
  * @param int $limit 返回数量，默认20
  * @return array
  */
+/**
+ * 获取下载排行榜
+ * 
+ * 优化说明：
+ * 1. 使用子查询先在 download_logs 表上聚合和排序，只获取前 N 个 book_id
+ * 2. 然后再 JOIN books 表，避免对千万级 books 表进行全表扫描
+ * 3. 这种方式比 LEFT JOIN + GROUP BY 效率高得多，特别是当 download_logs 表有索引时
+ * 
+ * 建议：为 download_logs.book_id 添加索引以进一步提升性能：
+ *   ALTER TABLE download_logs ADD INDEX idx_book_id (book_id);
+ * 
+ * @param int $limit 返回的记录数，默认 20
+ * @return array 包含书籍信息和下载次数的数组
+ */
 function get_download_ranking($limit = 20)
 {
     global $pdo;
+    
+    // 确保 limit 是正整数
+    $limit = max(1, (int)$limit);
+    
     try {
-        // 获取累计下载最高的10本书
+        // 优化后的 SQL：先在子查询中聚合和排序，只获取需要的 book_id
+        // 然后再 JOIN books 表，避免对千万级 books 表进行全表扫描
         $sql = "
             SELECT 
                 b.*,
-                COUNT(dl.id) as download_count
-            FROM books b
-            LEFT JOIN download_logs dl ON b.id = dl.book_id
-            GROUP BY b.id, b.title, b.author
-            ORDER BY download_count DESC
-            LIMIT $limit
+                dl_stats.download_count
+            FROM (
+                SELECT 
+                    book_id,
+                    COUNT(*) as download_count
+                FROM download_logs
+                GROUP BY book_id
+                ORDER BY download_count DESC
+                LIMIT :limit
+            ) dl_stats
+            INNER JOIN books b ON b.id = dl_stats.book_id
+            ORDER BY dl_stats.download_count DESC
         ";
-        $stmt = $pdo->query($sql);
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log('获取下载排行失败: ' . $e->getMessage());
