@@ -33,7 +33,6 @@ class FrontController extends BaseController
     private DownloadService $downloadService;
     private UserService $userService;
     private SearchService $searchService;
-    private SearchBuilderService $searchBuilderService;
 
     public function __construct()
     {
@@ -44,7 +43,6 @@ class FrontController extends BaseController
         $this->downloadService = new DownloadService();
         $this->userService = new UserService();
         $this->searchService = new SearchService();
-        $this->searchBuilderService = new SearchBuilderService();
     }
 
     /**
@@ -494,31 +492,29 @@ class FrontController extends BaseController
         $popular_searches = [];
 
         if (!empty($query)) {
-            $search_conditions = $this->searchBuilderService->buildSearchConditions($type, $query, $format);
-
-            $count_sql = "SELECT COUNT(DISTINCT b.id) FROM books b WHERE {$search_conditions['where']}";
-            $stmt = $this->pdo->prepare($count_sql);
-            $stmt->execute($search_conditions['params']);
-            $total = $stmt->fetchColumn();
-
-            $sql = "SELECT DISTINCT b.id, b.title, b.author, b.description, b.cover_url, b.published_at, b.file_format, b.file_size,
-                    ({$search_conditions['relevance']}) as relevance_score
-                    FROM books b 
-                    WHERE {$search_conditions['where']} 
-                    ORDER BY relevance_score DESC, b.id 
-                    LIMIT :limit OFFSET :offset";
-
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-
-            foreach ($search_conditions['params'] as $key => $value) {
-                $stmt->bindValue($key, $value, PDO::PARAM_STR);
+            // 开始搜索书籍
+            if (!empty($type)) {
+                if ($type === 'all') {
+                    $sql_where = "title like '%$query%' or author like '%$query%' or description like '%$query%'";
+                }elseif ($type === 'title') {
+                    $sql_where = "title like '%$query%'";
+                }elseif ($type === 'author') {
+                    $sql_where = "author like '%$query%'";
+                }elseif ($type === 'description') {
+                    $sql_where = "description like '%$query%'";
+                }
             }
-
+            $sql_where = "($sql_where)";
+            if (!empty($format)) {
+                $sql_where .= " and file_format = '$format'";
+            }
+           
+            $sql = "select * from books where $sql_where order by id desc limit $limit offset $offset";   // 使用 LIKE 搜索
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute();
             $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
+            $total = $this->pdo->query("select count(*) from books where $sql_where")->fetchColumn();
             // 记录搜索历史（只在第一页时记录）
             if ($page === 1) {
                 $user_id = $this->auth->isLoggedIn() ? $this->auth->getUserId() : null;
