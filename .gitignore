@@ -4,7 +4,6 @@
 /duplicate
 pending/
 ebook_files/
-config.php
 .env
 .DS_Store
 sitemap.xml
