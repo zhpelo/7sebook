@@ -27,7 +27,16 @@ if (php_sapi_name() !== 'cli') {
     die("错误: 此脚本只能通过命令行执行\n");
 }
 
-require_once __DIR__ . '/common.php';
+// 加载自动加载器
+require_once __DIR__ . '/app/Bootstrap/autoload.php';
+
+// 初始化应用
+use App\Bootstrap\Bootstrap;
+use App\Helper\TimeHelper;
+use App\Helper\StringHelper;
+
+Bootstrap::init();
+Bootstrap::loadClasses();
 
 // ==================== 配置常量 ====================
 const DEFAULT_FILE_LIMIT = 10;
@@ -156,7 +165,7 @@ function scanSupportedFiles(string $input_dir, int $limit): array
     }
     
     $files = [];
-    $supported_exts = SUPPORTED_EXTS;
+    $supported_exts = \App\Config\Config::getSupportedExts();
     
     try {
         $iterator = new RecursiveIteratorIterator(
@@ -342,7 +351,7 @@ function insertBookToDatabase(
             $identifiers,
             $cover_url,
             $file_path_value,
-            get_current_time(),
+            TimeHelper::getCurrentTime(),
         ]);
         
         return true;
@@ -460,7 +469,7 @@ function extractMetadata(string $file_path, string $md5, string $cover_dir): ?ar
                 $meta['description'] = mb_strlen($content, 'UTF-8') > 300
                     ? mb_substr($content, 0, 300, 'UTF-8') . "..."
                     : $content;
-                $meta['description'] = trim(clean_to_utf8($meta['description']));
+                $meta['description'] = trim(StringHelper::cleanToUtf8($meta['description']));
             }
         }
         
@@ -589,8 +598,8 @@ function main(): void
     $limit = $args['limit'];
     echo "开始处理，限制文件数量: $limit\n\n";
     
-    // 检查数据库连接
-    global $pdo;
+    // 获取数据库连接
+    $pdo = \App\Database\Connection::getInstance();
     if (!$pdo) {
         die("错误: 数据库连接失败\n");
     }

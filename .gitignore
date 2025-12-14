@@ -5,8 +5,6 @@
 pending/
 ebook_files/
 config.php
+.env
 .DS_Store
-
-test.php
-.gitignore
-1.txt
+sitemap.xml
