@@ -515,6 +515,7 @@ class FrontController extends BaseController
             }
            
             $sql = "select * from books where $sql_where order by id desc limit $limit offset $offset";   // 使用 LIKE 搜索
+
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute();
             $books = $stmt->fetchAll(PDO::FETCH_ASSOC);

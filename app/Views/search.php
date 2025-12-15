@@ -10,11 +10,13 @@
                         type="search"
                         id="search-input"
                         name="q"
+                        minlength="2"
                         placeholder="输入关键词搜索图书..."
                         value="<?php echo htmlspecialchars($query ?? ''); ?>"
                         class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-lg"
                         autocomplete="off"
-                        aria-label="搜索关键词">
+                        aria-label="搜索关键词"
+                        required>
                 </div>
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition-colors flex items-center justify-center min-h-[44px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" aria-label="执行搜索">
                     <i class="fas fa-search mr-2" aria-hidden="true"></i> 
