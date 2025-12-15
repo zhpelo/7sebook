@@ -202,15 +202,12 @@
             y.parentNode.insertBefore(t, y);
         })(window, document, "clarity", "script", "u6azio9pp0");
     </script>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6790232035711874"
-     crossorigin="anonymous"></script>
 </head>
 
 <body class="bg-gray-100 min-h-screen">
     <?php
     use App\Auth\Auth;
     use App\Service\DownloadService;
-    use App\Service\SearchService;
     
     $auth = $auth ?? new Auth();
     ?>
