@@ -136,9 +136,7 @@ $auth = $auth ?? new Auth();
                         <?php if ($auth->isLoggedIn()): ?>
                             <?php 
                             $downloadService = new DownloadService();
-                            $networkHelper = new NetworkHelper();
-                            $ipAddress = $networkHelper->getClientIp();
-                            if ($downloadService->checkDownloadLimit($auth->getUserId(), $ipAddress)): 
+                            if ($downloadService->checkDownloadLimit($auth->getUserId())): 
                             ?>
                                 <a href="?action=download&id=<?php echo $book['id']; ?>" 
                                    class="inline-flex items-center justify-center bg-green-600 hover:bg-green-700 active:bg-green-800 text-white px-5 sm:px-6 py-3 rounded-lg font-semibold transition-colors min-h-[44px] focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" 

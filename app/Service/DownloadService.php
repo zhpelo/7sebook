@@ -29,15 +29,10 @@ class DownloadService
      * 检查用户今日下载次数是否超过限制
      * 
      * @param int $userId 用户ID
-     * @param string|null $ipAddress IP地址
      * @return bool 是否未超过限制
      */
-    public function checkDownloadLimit(int $userId, ?string $ipAddress = null): bool
+    public function checkDownloadLimit(int $userId): bool
     {
-        if ($ipAddress === null) {
-            $ipAddress = $this->networkHelper->getClientIp();
-        }
-
         $todayStart = date('Y-m-d 00:00:00');
         $todayEnd = date('Y-m-d 23:59:59');
 
@@ -45,15 +40,12 @@ class DownloadService
             $stmt = $this->db->prepare("
                 SELECT COUNT(*) 
                 FROM download_logs 
-                WHERE (
-                    (user_id = :user_id AND download_time >= :today_start AND download_time <= :today_end)
-                    OR 
-                    (ip_address = :ip_address AND download_time >= :today_start AND download_time <= :today_end)
-                )
+                WHERE user_id = :user_id 
+                AND download_time >= :today_start 
+                AND download_time <= :today_end
             ");
             $stmt->execute([
                 ':user_id' => $userId,
-                ':ip_address' => $ipAddress,
                 ':today_start' => $todayStart,
                 ':today_end' => $todayEnd
             ]);
