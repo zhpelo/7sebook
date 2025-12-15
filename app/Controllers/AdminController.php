@@ -749,17 +749,24 @@ class AdminController extends BaseController
             $daily_download_counts[$data['date']] = (int)$data['download_count'];
         }
 
+        // 优化查询：先聚合download_logs，再JOIN books，避免全表扫描
         $stmt = $this->pdo->prepare("
             SELECT 
                 b.id,
                 b.title,
                 b.author,
-                COUNT(dl.id) as download_count
-            FROM books b
-            LEFT JOIN download_logs dl ON b.id = dl.book_id
-            GROUP BY b.id, b.title, b.author
-            ORDER BY download_count DESC
-            LIMIT 10
+                dl_stats.download_count
+            FROM (
+                SELECT 
+                    book_id,
+                    COUNT(*) as download_count
+                FROM download_logs
+                GROUP BY book_id
+                ORDER BY download_count DESC
+                LIMIT 10
+            ) dl_stats
+            INNER JOIN books b ON b.id = dl_stats.book_id
+            ORDER BY dl_stats.download_count DESC
         ");
         $stmt->execute();
         $top_books = $stmt->fetchAll(PDO::FETCH_ASSOC);
