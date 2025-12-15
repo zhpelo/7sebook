@@ -1,0 +1,50 @@
+# Nginx 配置示例 - WebP 图片自动生成
+# 
+# 将此配置添加到您的 nginx 站点配置文件中
+# 通常位于 /etc/nginx/sites-available/your-site 或类似位置
+
+server {
+    # ... 其他配置 ...
+
+    # WebP 图片自动生成规则
+    # 当访问 /covers_sm/ 路径下的 .webp 文件时，如果文件不存在，则调用 PHP 脚本生成
+    location ~ ^/covers_sm/(.+\.webp)$ {
+        # 首先尝试直接提供文件
+        try_files $uri @generate_webp;
+        
+        # 设置缓存头
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header Content-Type "image/webp";
+    }
+
+    # 如果文件不存在，调用 PHP 脚本生成
+    location @generate_webp {
+        # 重写 URL 到生成脚本
+        rewrite ^/covers_sm/(.+\.webp)$ /generate_webp.php?path=$1 last;
+    }
+
+    # PHP 处理
+    location ~ \.php$ {
+        # ... 您现有的 PHP 配置 ...
+        fastcgi_pass unix:/var/run/php/php-fpm.sock;  # 根据您的环境调整
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+        
+        # 对于 generate_webp.php，需要传递原始请求 URI
+        fastcgi_param REQUEST_URI $request_uri;
+    }
+
+    # ... 其他配置 ...
+}
+
+# 或者，如果您使用更简单的配置方式：
+# 
+# location /covers_sm/ {
+#     try_files $uri @webp_generator;
+# }
+# 
+# location @webp_generator {
+#     rewrite ^/covers_sm/(.+)$ /generate_webp.php?path=$1 last;
+# }

@@ -63,7 +63,8 @@ use App\Helper\ViewHelper;
                                     <div class="w-32 sm:w-40 flex-shrink-0">
                                         <div class="bg-gray-100 flex items-center justify-center h-full">
                                             <?php if ($book['cover_url']): ?>
-                                                <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
+                                                <?php $optimizedUrl = \App\Helper\ViewHelper::getOptimizedImageUrl($book['cover_url']); ?>
+                                                <img src="<?php echo htmlspecialchars($optimizedUrl); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover" loading="lazy">
                                             <?php else: ?>
                                                 <div class="text-gray-400 text-center p-2">
                                                     <i class="fas fa-book text-2xl mb-1"></i>
@@ -113,7 +114,8 @@ use App\Helper\ViewHelper;
                                     </div>
                                     <div class="bg-gray-100 flex items-center justify-center aspect-[2/3]">
                                         <?php if ($book['cover_url']): ?>
-                                            <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
+                                            <?php $optimizedUrl = \App\Helper\ViewHelper::getOptimizedImageUrl($book['cover_url']); ?>
+                                            <img src="<?php echo htmlspecialchars($optimizedUrl); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover" loading="lazy">
                                         <?php else: ?>
                                             <div class="text-gray-400 text-center p-4">
                                                 <i class="fas fa-book text-4xl mb-2"></i>

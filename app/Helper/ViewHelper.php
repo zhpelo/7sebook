@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Helper;
 
 use App\Auth\Auth;
+use App\Service\ImageService;
 
 /**
  * 视图渲染辅助类
@@ -13,6 +14,20 @@ use App\Auth\Auth;
  */
 class ViewHelper
 {
+    /**
+     * 获取优化后的图片 URL
+     * 
+     * @param string|null $coverUrl 原图 URL
+     * @return string 优化后的图片 URL
+     */
+    public static function getOptimizedImageUrl(?string $coverUrl): string
+    {
+        if (empty($coverUrl)) {
+            return '';
+        }
+
+        return ImageService::getOptimizedPath($coverUrl);
+    }
     /**
      * 渲染分页组件
      * 
@@ -256,7 +271,8 @@ class ViewHelper
                             <div class="w-32 sm:w-40 flex-shrink-0">
                                 <div class="bg-gray-100 flex items-center justify-center h-full">
                                     <?php if ($book['cover_url']): ?>
-                                        <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
+                                        <?php $optimizedUrl = self::getOptimizedImageUrl($book['cover_url']); ?>
+                                        <img src="<?php echo htmlspecialchars($optimizedUrl); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover" loading="lazy">
                                     <?php else: ?>
                                         <div class="text-gray-400 text-center p-2">
                                             <?php
@@ -324,7 +340,8 @@ class ViewHelper
                         <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
                             <div class="bg-gray-100 flex items-center justify-center aspect-[2/3]">
                                 <?php if ($book['cover_url']): ?>
-                                    <img src="<?php echo htmlspecialchars($book['cover_url']); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover">
+                                    <?php $optimizedUrl = self::getOptimizedImageUrl($book['cover_url']); ?>
+                                    <img src="<?php echo htmlspecialchars($optimizedUrl); ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="w-full h-full object-cover" loading="lazy">
                                 <?php else: ?>
                                     <div class="text-gray-400 text-center p-4">
                                         <i class="fas fa-book text-4xl mb-2"></i>
