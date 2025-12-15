@@ -63,7 +63,7 @@ class DownloadService
      * 
      * @param int $userId 用户ID
      * @param int $bookId 书籍ID
-     * @param string|null $ipAddress IP地址
+     * @param string|null $ipAddress IP地址（可选，仅用于记录日志）
      * @return bool 是否成功
      */
     public function tryLogDownload(int $userId, int $bookId, ?string $ipAddress = null): bool
@@ -78,20 +78,17 @@ class DownloadService
             $todayStart = date('Y-m-d 00:00:00');
             $todayEnd = date('Y-m-d 23:59:59');
 
-            // 锁定相关行并检查下载次数
+            // 锁定相关行并检查下载次数（只检查用户ID）
             $stmt = $this->db->prepare("
                 SELECT COUNT(*) 
                 FROM download_logs 
-                WHERE (
-                    (user_id = :user_id AND download_time >= :today_start AND download_time <= :today_end)
-                    OR 
-                    (ip_address = :ip_address AND download_time >= :today_start AND download_time <= :today_end)
-                )
+                WHERE user_id = :user_id 
+                AND download_time >= :today_start 
+                AND download_time <= :today_end
                 FOR UPDATE
             ");
             $stmt->execute([
                 ':user_id' => $userId,
-                ':ip_address' => $ipAddress,
                 ':today_start' => $todayStart,
                 ':today_end' => $todayEnd
             ]);

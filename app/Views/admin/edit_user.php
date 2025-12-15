@@ -6,6 +6,16 @@
             <i class="fas fa-arrow-left mr-2"></i> 返回列表
         </a>
     </div>
+    
+    <?php if (!empty($error)): ?>
+        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                <span><?php echo htmlspecialchars($error); ?></span>
+            </div>
+        </div>
+    <?php endif; ?>
+    
     <form method="POST" action="?action=edit_user&id=<?php echo $edit_user['id']; ?>" class="max-w-md">
         <div class="space-y-4">
             <div>
