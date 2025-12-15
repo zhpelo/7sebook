@@ -493,6 +493,7 @@ class FrontController extends BaseController
 
         if (!empty($query)) {
             // 开始搜索书籍
+            $sql_where = "";
             if (!empty($type)) {
                 if ($type === 'all') {
                     $sql_where = "title like '%$query%' or author like '%$query%' or description like '%$query%'";
@@ -503,10 +504,14 @@ class FrontController extends BaseController
                 }elseif ($type === 'description') {
                     $sql_where = "description like '%$query%'";
                 }
+                $sql_where = "($sql_where)";
             }
-            $sql_where = "($sql_where)";
+            
             if (!empty($format)) {
-                $sql_where .= " and file_format = '$format'";
+                if(!empty($sql_where)) {
+                    $sql_where .= " and ";
+                }
+                $sql_where .= "file_format = '$format'";
             }
            
             $sql = "select * from books where $sql_where order by id desc limit $limit offset $offset";   // 使用 LIKE 搜索
