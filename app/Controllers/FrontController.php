@@ -640,9 +640,9 @@ class FrontController extends BaseController
             'book' => $book,
             'related_books' => $related_books,
             'book_layout' => $book_layout,
-            'pageTitle' => htmlspecialchars($book['title']) . ' - ' . htmlspecialchars($book['author']) . ' - 七秒电子书',
-            'pageDescription' => htmlspecialchars(mb_substr(strip_tags($book['description'] ?? '暂无简介'), 0, 155)),
-            'pageKeywords' => htmlspecialchars($book['title']) . ',' . htmlspecialchars($book['author']) . ',电子书下载,' . htmlspecialchars($book['category'] ?? '') . ',' . htmlspecialchars($book['file_format']) . '电子书,免费电子书',
+            'pageTitle' => htmlspecialchars($book['title']) . ' - ' . $book['author']. ' - 七秒电子书',
+            'pageDescription' => htmlspecialchars( strip_tags($book['description'] ?? '暂无简介') ),
+            'pageKeywords' => htmlspecialchars($book['title']) . ',' .$book['author'] . ',电子书下载,'. $book['file_format'] . '电子书,免费电子书,七秒电子书,电子书资源,电子书下载网站,七秒书盘',
         ], 'layout');
     }
 
