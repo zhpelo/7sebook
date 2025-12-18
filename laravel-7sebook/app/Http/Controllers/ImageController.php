@@ -6,6 +6,7 @@ use App\Services\ImageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class ImageController extends Controller
 {
@@ -33,7 +34,7 @@ class ImageController extends Controller
     
         // 构建优化后的图片路径（相对于 public 目录）
         $optimizedPath = 'covers_sm/' . $path;
-        $fullOptimizedPath = storage_path($optimizedPath);
+        $fullOptimizedPath =  Storage::disk('public')->path($optimizedPath);
 
    
         // 如果缩略图已存在，直接返回
@@ -51,7 +52,9 @@ class ImageController extends Controller
         // 构建原图路径
         // 从 covers_sm/251117/xxx.webp 转换为 covers/251117/xxx.jpg
         $originalPath = 'covers/' . str_replace('.webp', '', $path);
-        $fullOriginalPath = storage_path($originalPath);
+        $fullOriginalPath = Storage::disk('public')->path($originalPath);
+
+      
 
         // 如果原图不存在，直接返回占位图片
         if (!file_exists($fullOriginalPath)) {
