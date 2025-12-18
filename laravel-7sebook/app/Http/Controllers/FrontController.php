@@ -193,20 +193,13 @@ class FrontController extends Controller
         }
 
         // 使用原子操作尝试记录下载日志
-        if (!$this->downloadService->tryLogDownload($userId, $bookId)) {
-            return redirect()->route('book.detail', $bookId)->with('error', '今日下载次数已达上限（5次），请明天再试');
-        }
+        // if (!$this->downloadService->tryLogDownload($userId, $bookId)) {
+        //     return redirect()->route('book.detail', $bookId)->with('error', '今日下载次数已达上限（5次），请明天再试');
+        // }
 
         // 下载日志已成功记录，现在提供文件下载
-        $filepath = base_path('../' . $book->file_path);
+        $filepath = Storage::disk('local')->path($book->file_path);
 
-        // 安全检查：确保文件路径在预期目录内
-        $realPath = realpath($filepath);
-        $baseDir = realpath(base_path('../'));
-
-        if (!$realPath || strpos($realPath, $baseDir) !== 0) {
-            return redirect()->route('book.detail', $bookId)->with('error', '文件路径无效');
-        }
 
         if (!file_exists($filepath)) {
             return redirect()->route('book.detail', $bookId)->with('error', '文件不存在');
