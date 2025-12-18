@@ -76,8 +76,7 @@
                     @endauth
                     <!-- 暗色模式切换按钮 -->
                     <button id="darkModeToggle" type="button" onclick="window.toggleDarkMode()" class="ml-2 p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all" aria-label="切换暗色模式">
-                        <i class="fas fa-moon dark:hidden"></i>
-                        <i class="fas fa-sun hidden dark:inline"></i>
+                        <i id="darkModeIcon" class="fas fa-moon"></i>
                     </button>
                 </div>
             </div>
@@ -95,8 +94,7 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <button id="darkModeToggleMobile" type="button" onclick="window.toggleDarkMode()" class="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="切换暗色模式">
-                    <i class="fas fa-moon dark:hidden"></i>
-                    <i class="fas fa-sun hidden dark:inline"></i>
+                    <i id="darkModeIconMobile" class="fas fa-moon"></i>
                 </button>
             </div>
         </div>
@@ -146,10 +144,10 @@
     </div>
 
     <!-- 主要内容 -->
-    <main class="pt-16 md:pt-20 pb-20 md:pb-6 min-h-screen">
+    <main class="pt-30 md:pt-20 pb-30 md:pb-6 min-h-screen">
         <div class="max-w-7xl mx-auto px-2 md:px-4 lg:px-6">
             @if(session('message'))
-                <div class="fixed top-20 md:top-16 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 dark:bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm animate-slide-down max-w-md">
+                <div class="fixed top-32 md:top-16 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 dark:bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm animate-slide-down max-w-md">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
                             <i class="fas fa-check-circle mr-2"></i>
@@ -162,7 +160,7 @@
                 </div>
             @endif
             @if(session('error'))
-                <div class="fixed top-20 md:top-16 left-1/2 transform -translate-x-1/2 z-50 bg-red-500 dark:bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm animate-slide-down max-w-md">
+                <div class="fixed top-32 md:top-16 left-1/2 transform -translate-x-1/2 z-50 bg-red-500 dark:bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm animate-slide-down max-w-md">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
                             <i class="fas fa-exclamation-circle mr-2"></i>
@@ -211,6 +209,21 @@
     @stack('scripts')
     
     <script>
+        // 更新图标显示
+        function updateDarkModeIcons() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+            const darkModeIcon = document.getElementById('darkModeIcon');
+            const darkModeIconMobile = document.getElementById('darkModeIconMobile');
+            
+            if (darkModeIcon) {
+                darkModeIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            if (darkModeIconMobile) {
+                darkModeIconMobile.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+        
         // 全局暗色模式切换函数
         window.toggleDarkMode = function() {
             const html = document.documentElement;
@@ -223,12 +236,10 @@
             const isDark = html.classList.contains('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             
-            console.log('暗色模式已切换:', isDark ? 'dark' : 'light');
-            console.log('HTML 元素类:', html.className);
-            console.log('Body 元素类:', body.className);
+            // 更新图标
+            updateDarkModeIcons();
             
-            // 强制触发重绘
-            void html.offsetHeight;
+            console.log('暗色模式已切换:', isDark ? 'dark' : 'light');
         };
         
         // 初始化暗色模式
@@ -250,8 +261,10 @@
                 body.classList.remove('dark');
             }
             
+            // 初始化图标显示
+            updateDarkModeIcons();
+            
             console.log('暗色模式已初始化:', html.classList.contains('dark') ? 'dark' : 'light');
-            console.log('HTML 元素类:', html.className);
         })();
         
         // 移动端菜单切换

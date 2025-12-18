@@ -71,8 +71,7 @@
             </a>
             <div class="flex items-center space-x-2">
                 <button id="darkModeToggleAdmin" type="button" onclick="window.toggleDarkMode()" class="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="切换暗色模式">
-                    <i class="fas fa-moon dark:hidden"></i>
-                    <i class="fas fa-sun hidden dark:inline"></i>
+                    <i id="darkModeIconAdmin" class="fas fa-moon"></i>
                 </button>
                 <a href="{{ route('home') }}" target="_blank" class="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                     <i class="fas fa-external-link-alt"></i>
@@ -147,6 +146,25 @@
     </main>
 
     <script>
+        // 更新图标显示
+        function updateDarkModeIcons() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+            const darkModeIcon = document.getElementById('darkModeIcon');
+            const darkModeIconMobile = document.getElementById('darkModeIconMobile');
+            const darkModeIconAdmin = document.getElementById('darkModeIconAdmin');
+            
+            if (darkModeIcon) {
+                darkModeIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            if (darkModeIconMobile) {
+                darkModeIconMobile.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            if (darkModeIconAdmin) {
+                darkModeIconAdmin.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+        
         // 全局暗色模式切换函数（如果前台没有定义，则定义它）
         if (typeof window.toggleDarkMode === 'undefined') {
             window.toggleDarkMode = function() {
@@ -160,11 +178,10 @@
                 const isDark = html.classList.contains('dark');
                 localStorage.setItem('theme', isDark ? 'dark' : 'light');
                 
-                console.log('暗色模式已切换:', isDark ? 'dark' : 'light');
-                console.log('HTML 元素类:', html.className);
+                // 更新图标
+                updateDarkModeIcons();
                 
-                // 强制触发重绘
-                void html.offsetHeight;
+                console.log('暗色模式已切换:', isDark ? 'dark' : 'light');
             };
         }
         
@@ -184,6 +201,18 @@
             } else {
                 html.classList.remove('dark');
                 body.classList.remove('dark');
+            }
+            
+            // 初始化图标显示
+            if (typeof updateDarkModeIcons === 'function') {
+                updateDarkModeIcons();
+            } else {
+                // 如果前台没有定义，在这里定义
+                const darkModeIconAdmin = document.getElementById('darkModeIconAdmin');
+                if (darkModeIconAdmin) {
+                    const isDark = html.classList.contains('dark');
+                    darkModeIconAdmin.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+                }
             }
             
             console.log('暗色模式已初始化:', html.classList.contains('dark') ? 'dark' : 'light');
