@@ -35,7 +35,7 @@
                 <div class="flex-grow p-4 md:p-6 lg:p-8">
                     <h1 class="text-xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">{{ $book->title }}</h1>
                     <p class="text-base md:text-lg text-gray-600 dark:text-gray-400 mb-6">
-                        <i class="fas fa-user text-gray-400 dark:text-gray-500 mr-2"></i>{{ $book->author ?? '未知作者' }}
+                        <i class="fas fa-user text-gray-400 dark:text-gray-500 mr-2"></i>{{ $book->author ?: '未知作者' }}
                     </p>
                     
                     <!-- 操作按钮 -->
@@ -124,7 +124,7 @@
                                     <h3 class="font-medium text-xs mb-1 line-clamp-2 text-gray-800 dark:text-gray-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                                         {{ $relatedBook['title'] }}
                                     </h3>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ $relatedBook['author'] ?? '未知作者' }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ $relatedBook['author'] ?: '未知作者' }}</p>
                                 </div>
                             </div>
                         </a>

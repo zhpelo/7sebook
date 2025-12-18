@@ -51,7 +51,7 @@
                         <td class="px-4 py-3">
                             <p class="font-medium text-gray-900 dark:text-gray-100 max-w-xs truncate">{{ $book->title }}</p>
                         </td>
-                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $book->author ?? '未知作者' }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $book->author ?: '未知作者' }}</td>
                         <td class="px-4 py-3">
                             <span class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">{{ $book->file_format }}</span>
                         </td>

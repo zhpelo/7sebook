@@ -30,7 +30,7 @@
                                 <h3 class="font-medium text-xs md:text-sm mb-1 line-clamp-2 text-gray-800 dark:text-gray-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                                     {{ $book['title'] }}
                                 </h3>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ $book['author'] ?? '未知作者' }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ $book['author'] ?: '未知作者' }}</p>
                             </div>
                         </div>
                     </a>

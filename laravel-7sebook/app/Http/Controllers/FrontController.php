@@ -505,7 +505,7 @@ class FrontController extends Controller
     public function latest(Request $request)
     {
         $page = max(1, (int) $request->get('page', 1));
-        $limit = 20;
+        $limit = 24;
         $offset = ($page - 1) * $limit;
         $bookLayout = $request->cookie('book_layout', 'grid');
 

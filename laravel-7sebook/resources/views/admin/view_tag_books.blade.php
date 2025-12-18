@@ -32,7 +32,7 @@
                                 {{ $book->title }}
                             </a>
                         </td>
-                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $book->author ?? '未知作者' }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $book->author ?: '未知作者' }}</td>
                         <td class="px-4 py-3">
                             <a href="{{ route('admin.edit_book', $book->id) }}" 
                                class="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all">

@@ -34,7 +34,7 @@
                             <h3 class="font-semibold text-sm md:text-lg text-gray-800 dark:text-gray-200 mb-1 line-clamp-1">
                                 {{ $book['title'] }}
                             </h3>
-                            <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-2">{{ $book['author'] ?? '未知作者' }}</p>
+                            <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-2">{{ $book['author'] ?: '未知作者' }}</p>
                             <div class="flex items-center text-xs md:text-sm text-gray-400 dark:text-gray-500">
                                 <i class="fas fa-download mr-2"></i>
                                 <span>下载 {{ $book['download_count'] ?? 0 }} 次</span>
