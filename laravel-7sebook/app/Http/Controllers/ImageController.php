@@ -20,6 +20,7 @@ class ImageController extends Controller
     public function thumbnail(Request $request, string $path)
     {
 
+ 
   
         // 清理路径，移除多余的斜杠
         $path = trim($path, '/');
@@ -54,7 +55,6 @@ class ImageController extends Controller
         $originalPath = 'covers/' . str_replace('.webp', '', $path);
         $fullOriginalPath = Storage::disk('public')->path($originalPath);
 
-      
 
         // 如果原图不存在，直接返回占位图片
         if (!file_exists($fullOriginalPath)) {
@@ -62,7 +62,7 @@ class ImageController extends Controller
         }
 
         // 生成缩略图（路径相对于 public 目录）
-        if (ImageService::convertToWebP($originalPath, $optimizedPath)) {
+        if (ImageService::convertToWebP($fullOriginalPath, $fullOptimizedPath)) {
             // 如果生成成功，返回图片
             if (file_exists($fullOptimizedPath)) {
                 return response()->file($fullOptimizedPath, [

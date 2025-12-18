@@ -22,6 +22,7 @@ class ImageService
      */
     public static function convertToWebP(string $sourcePath, string $targetPath, int $maxWidth = 200, int $quality = 85): bool
     {
+
         // 检查 GD 扩展是否可用
         if (!extension_loaded('gd')) {
             \Log::error('GD extension is not loaded');
@@ -34,36 +35,29 @@ class ImageService
             return false;
         }
 
-        // 获取 public 目录路径
-        $publicPath = public_path();
-        // 移除开头的斜杠，确保路径正确
-        $sourcePath = ltrim($sourcePath, '/');
-        $targetPath = ltrim($targetPath, '/');
-        $fullSourcePath = $publicPath . '/' . $sourcePath;
-        $fullTargetPath = $publicPath . '/' . $targetPath;
-
         // 检查源文件是否存在
-        if (!file_exists($fullSourcePath) || !is_readable($fullSourcePath)) {
-            \Log::error("Source image not found: {$fullSourcePath}");
+        if (!file_exists($sourcePath) || !is_readable($sourcePath)) {
+            \Log::error("Source image not found: {$sourcePath}");
             return false;
         }
 
         // 创建目标目录
-        $targetDir = dirname($fullTargetPath);
+        $targetDir = dirname($targetPath);
         if (!is_dir($targetDir)) {
             if (!mkdir($targetDir, 0755, true)) {
                 \Log::error("Failed to create directory: {$targetDir}");
                 return false;
             }
         }
+  
 
         // 获取图片信息
-        $imageInfo = @getimagesize($fullSourcePath);
+        $imageInfo = @getimagesize($sourcePath);
         if ($imageInfo === false) {
-            \Log::error("Invalid image file: {$fullSourcePath}");
+            \Log::error("Invalid image file: {$sourcePath}");
             return false;
         }
-
+  
         $sourceWidth = $imageInfo[0];
         $sourceHeight = $imageInfo[1];
         $mimeType = $imageInfo['mime'];
@@ -82,16 +76,16 @@ class ImageService
         $sourceImage = null;
         switch ($mimeType) {
             case 'image/jpeg':
-                $sourceImage = @imagecreatefromjpeg($fullSourcePath);
+                $sourceImage = @imagecreatefromjpeg($sourcePath);
                 break;
             case 'image/png':
-                $sourceImage = @imagecreatefrompng($fullSourcePath);
+                $sourceImage = @imagecreatefrompng($sourcePath);
                 break;
             case 'image/gif':
-                $sourceImage = @imagecreatefromgif($fullSourcePath);
+                $sourceImage = @imagecreatefromgif($sourcePath);
                 break;
             case 'image/webp':
-                $sourceImage = @imagecreatefromwebp($fullSourcePath);
+                $sourceImage = @imagecreatefromwebp($sourcePath);
                 break;
             default:
                 \Log::error("Unsupported image type: {$mimeType}");
@@ -99,7 +93,7 @@ class ImageService
         }
 
         if ($sourceImage === false) {
-            \Log::error("Failed to load image: {$fullSourcePath}");
+            \Log::error("Failed to load image: {$sourcePath}");
             return false;
         }
 
@@ -126,14 +120,14 @@ class ImageService
         );
 
         // 保存为 WebP
-        $result = imagewebp($newImage, $fullTargetPath, $quality);
+        $result = imagewebp($newImage, $targetPath, $quality);
 
         // 释放内存
         imagedestroy($sourceImage);
         imagedestroy($newImage);
 
         if ($result === false) {
-            \Log::error("Failed to save WebP image: {$fullTargetPath}");
+            \Log::error("Failed to save WebP image: {$targetPath}");
             return false;
         }
 
