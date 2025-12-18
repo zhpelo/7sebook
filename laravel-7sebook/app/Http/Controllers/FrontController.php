@@ -193,9 +193,9 @@ class FrontController extends Controller
         }
 
         // 使用原子操作尝试记录下载日志
-        // if (!$this->downloadService->tryLogDownload($userId, $bookId)) {
-        //     return redirect()->route('book.detail', $bookId)->with('error', '今日下载次数已达上限（5次），请明天再试');
-        // }
+        if (!$this->downloadService->tryLogDownload($userId, $bookId)) {
+            return redirect()->route('book.detail', $bookId)->with('error', '今日下载次数已达上限（5次），请明天再试');
+        }
 
         // 下载日志已成功记录，现在提供文件下载
         $filepath = Storage::disk('local')->path($book->file_path);

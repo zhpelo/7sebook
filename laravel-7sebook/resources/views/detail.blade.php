@@ -69,11 +69,11 @@
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm md:text-base">
                         <div class="flex items-center text-gray-600 dark:text-gray-400">
                             <i class="fas fa-file-alt w-5 text-gray-400 dark:text-gray-500 mr-2"></i>
-                            <span>格式：{{ $book->file_format }}</span>
+                            <span>文件格式：{{ $book->file_format }}</span>
                         </div>
                         <div class="flex items-center text-gray-600 dark:text-gray-400">
                             <i class="fas fa-weight w-5 text-gray-400 dark:text-gray-500 mr-2"></i>
-                            <span>大小：{{ $book->file_size }}</span>
+                            <span>文件大小：{{ \App\Helpers\FileHelper::formatFileSize($book->file_size) }}</span>
                         </div>
                         @if($book->publisher)
                             <div class="flex items-center text-gray-600 dark:text-gray-400">

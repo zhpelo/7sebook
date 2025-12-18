@@ -55,7 +55,7 @@
                         <td class="px-4 py-3">
                             <span class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">{{ $book->file_format }}</span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{{ $book->file_size }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{{ \App\Helpers\FileHelper::formatFileSize($book->file_size) }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center space-x-2">
                                 <a href="{{ route('admin.edit_book', $book->id) }}" 
