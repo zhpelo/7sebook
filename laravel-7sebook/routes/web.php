@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 
 // 图片缩略图路由（需要在其他路由之前，避免被拦截）
 // 使用通配符匹配包含斜杠的路径，如 251117/a77a9d23b5cdb58b253c6ac51ae42401.webp
-Route::get('/covers_sm/{path}', [ImageController::class, 'thumbnail'])
+Route::get('/storage/covers_sm/{path}', [ImageController::class, 'thumbnail'])
     ->where('path', '.+')
     ->name('image.thumbnail');
 

@@ -40,7 +40,7 @@
                         <td class="px-4 py-3">
                             <div class="w-12 h-16 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
                                 @if($book->cover_url)
-                                    <img src="{{ asset($book->cover_url) }}" alt="{{ $book->title }}" class="w-full h-full object-cover">
+                                    <img src="{{ Storage::url($book->cover_url) }}" alt="{{ $book->title }}" class="w-full h-full object-cover">
                                 @else
                                     <div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
                                         <i class="fas fa-book"></i>

@@ -91,7 +91,7 @@ class FrontController extends Controller
             }
         } else {
             // 没有搜索关键词时，显示随机50本带封面的书籍
-            $books = $this->bookService->getRandomBooks(50);
+            $books = $this->bookService->getRandomBooks(48);
             $total = count($books);
         }
 
@@ -139,7 +139,7 @@ class FrontController extends Controller
         // 获取相关推荐书籍
         $relatedBooks = Book::where('id', '<', $bookId)
             ->orderByDesc('id')
-            ->limit(10)
+            ->limit(12)
             ->get()
             ->toArray();
 

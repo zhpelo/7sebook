@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Storage;
+
 /**
  * 图片处理服务类
  * 
@@ -147,18 +149,15 @@ class ImageService
     public static function getOptimizedPath(string $originalPath): string
     {
         if (empty($originalPath)) {
-            return '';
+            return asset('images/no-cover.svg');
         }
 
         // 移除开头的斜杠
         $path = ltrim($originalPath, '/');
-
         // 替换目录名
         $path = str_replace('covers/', 'covers_sm/', $path);
 
-        // 替换文件扩展名为 .webp
-        $path = preg_replace('/\.(jpg|jpeg|png|gif|webp)$/i', '.webp', $path);
-
-        return '/' . $path;
+  
+        return Storage::url($path.'.webp');
     }
 }

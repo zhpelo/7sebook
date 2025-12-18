@@ -1,15 +1,15 @@
 @extends('layout')
 
 @section('meta')
-@if(isset($book))
-<meta property="og:type" content="book">
-<meta property="og:url" content="{{ url()->current() }}">
-<meta property="og:title" content="{{ $book->title }} - {{ $book->author }}">
-<meta property="og:description" content="{{ mb_substr(strip_tags($book->description ?? '暂无简介'), 0, 200) }}">
-@if($book->cover_url)
-<meta property="og:image" content="{{ asset($book->cover_url) }}">
-@endif
-@endif
+    @if(isset($book))
+        <meta property="og:type" content="book">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:title" content="{{ $book->title }} - {{ $book->author }}">
+        <meta property="og:description" content="{{ mb_substr(strip_tags($book->description ?? '暂无简介'), 0, 200) }}">
+        @if($book->cover_url)
+            <meta property="og:image" content="{{ Storage::url($book->cover_url) }}">
+        @endif
+    @endif
 @endsection
 
 @section('content')
@@ -21,7 +21,7 @@
                 <!-- 封面 -->
                 <div class="flex-shrink-0 w-full md:w-56 lg:w-64 p-4 md:p-6 lg:p-8 flex justify-center md:justify-start">
                     @if($book->cover_url)
-                        <img src="{{ asset($book->cover_url) }}" 
+                        <img src="{{ Storage::url($book->cover_url) }}" 
                              alt="{{ $book->title }}" 
                              class="w-40 h-56 md:w-48 md:h-64 lg:w-56 lg:h-80 object-cover rounded-xl shadow-lg">
                     @else
