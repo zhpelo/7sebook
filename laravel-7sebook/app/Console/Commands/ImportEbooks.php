@@ -46,24 +46,23 @@ class ImportEbooks extends Command
 
         $this->info("开始处理，限制文件数量: {$limit}\n");
 
-        $inputDir = base_path('../pending');
+        $inputDir =  storage::disk('local')->path('pending/');
+
+        
         $dateSuffix = date('ymd');
-        $successDir = base_path("../ebook_files/{$dateSuffix}");
-        $duplicateDir = base_path("../duplicate/{$dateSuffix}");
-        $coverDir = base_path("../covers/{$dateSuffix}");
+        $successDir = storage::disk('local')->path("ebook_files/{$dateSuffix}");
+
+        $duplicateDir = storage::disk('local')->path("duplicate/{$dateSuffix}");
+        $coverDir = storage::disk('public')->path("covers/{$dateSuffix}");
 
         // 确保目录存在
         $this->ensureDirectoryExists($successDir);
         $this->ensureDirectoryExists($duplicateDir);
         $this->ensureDirectoryExists($coverDir);
+  
 
-        if (!is_dir($inputDir)) {
-            $this->error("输入目录不存在: {$inputDir}");
-            return 1;
-        }
-
-        // 扫描文件
-        $files = $this->scanSupportedFiles($inputDir, $limit);
+         // 扫描文件
+         $files = $this->scanSupportedFiles($inputDir, $limit);
 
         if (empty($files)) {
             $this->info("没有找到需要处理的文件");
@@ -146,6 +145,8 @@ class ImportEbooks extends Command
             return false;
         }
 
+       
+
         // 检查是否重复
         if (Book::where('file_md5', $md5)->exists()) {
             $this->warn("⚠️  MD5 已存在，移动到重复目录");
@@ -167,6 +168,9 @@ class ImportEbooks extends Command
         try {
             DB::beginTransaction();
 
+            $localPath = storage::disk('local')->path('');
+            $publicPath = storage::disk('public')->path('');
+
             $book = Book::create([
                 'file_md5' => $md5,
                 'file_name' => $fileName,
@@ -179,8 +183,8 @@ class ImportEbooks extends Command
                 'publisher' => mb_substr($meta['publisher'] ?? '', 0, 100, 'UTF-8'),
                 'published_at' => $meta['published_at'] ?? null,
                 'identifiers' => mb_substr($meta['identifiers'] ?? '', 0, 65535, 'UTF-8'),
-                'cover_url' => mb_substr(str_replace(base_path('../'), '', $meta['cover_path'] ?? ''), 0, 500, 'UTF-8'),
-                'file_path' => mb_substr(str_replace(base_path('../'), '', $destPath), 0, 255, 'UTF-8'),
+                'cover_url' => mb_substr(str_replace($publicPath, '', $meta['cover_path'] ?? ''), 0, 500, 'UTF-8'),
+                'file_path' => mb_substr(str_replace($localPath, '', $destPath), 0, 255, 'UTF-8'),
             ]);
 
             // 处理标签（如果有）
