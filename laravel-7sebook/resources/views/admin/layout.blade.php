@@ -190,6 +190,7 @@
             'use strict';
             
             const html = document.documentElement;
+            const body = document.body;
             
             // 检查本地存储或系统偏好
             const savedTheme = localStorage.getItem('theme');
