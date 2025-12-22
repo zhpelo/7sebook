@@ -21,7 +21,7 @@
                 <!-- 封面 -->
                 <div class="flex-shrink-0 w-full md:w-56 lg:w-64 p-4 md:p-6 lg:p-8 flex justify-center md:justify-start">
                     @if($book->cover_url)
-                        <img src="{{ Storage::url($book->cover_url) }}" 
+                        <img src="{{ Storage::url( ltrim($book->cover_url, '/') ) }}" 
                              alt="{{ $book->title }}" 
                              class="w-40 h-56 md:w-48 md:h-64 lg:w-56 lg:h-80 object-cover rounded-xl shadow-lg">
                     @else
