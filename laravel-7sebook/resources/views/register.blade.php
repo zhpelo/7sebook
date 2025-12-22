@@ -62,7 +62,7 @@
             <div class="text-center">
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     已有账号？
-                    <a href="{{ route('login') }}" class="text-red-600 dark:text-red-400 font-medium hover:text-red-700 dark:hover:text-red-300">立即登录</a>
+                    <a href="{{ route('login', request()->has('intended') ? ['intended' => request()->get('intended')] : (session('intended_url') ? ['intended' => session('intended_url')] : [])) }}" class="text-red-600 dark:text-red-400 font-medium hover:text-red-700 dark:hover:text-red-300">立即登录</a>
                 </p>
             </div>
         </div>

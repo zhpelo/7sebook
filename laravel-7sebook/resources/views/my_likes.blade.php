@@ -7,7 +7,7 @@
         <p class="text-sm md:text-base text-gray-500 dark:text-gray-400 mb-4">共 {{ $user_liked_total }} 本</p>
         
         @if(!empty($user_liked_books))
-            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-4 lg:gap-6">
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-4 lg:gap-6">
                 @foreach($user_liked_books as $book)
                     <a href="{{ route('book.detail', $book['id']) }}" class="group">
                         <div class="book-card bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm hover:shadow-lg border border-gray-200 dark:border-gray-700">

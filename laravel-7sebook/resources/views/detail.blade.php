@@ -58,7 +58,7 @@
                                 <span class="favorite-count">{{ $book->favorite_count }}</span>
                             </button>
                         @else
-                            <a href="{{ route('login') }}" 
+                            <a href="{{ route('login', ['intended' => route('book.detail', $book->id)]) }}" 
                                class="px-6 md:px-8 py-3 md:py-3.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white rounded-xl transition-all font-medium text-base shadow-md hover:shadow-lg">
                                 <i class="fas fa-sign-in-alt mr-2"></i>登录后下载
                             </a>
@@ -104,7 +104,7 @@
         @if(!empty($related_books))
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-4 md:p-6 lg:p-8 border border-gray-200 dark:border-gray-700">
                 <h2 class="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-6">相关推荐</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-4 lg:gap-6">
+                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-4 lg:gap-6">
                     @foreach($related_books as $relatedBook)
                         <a href="{{ route('book.detail', $relatedBook['id']) }}" class="group">
                             <div class="book-card bg-gray-50 dark:bg-gray-700/50 rounded-lg overflow-hidden hover:shadow-md border border-gray-200 dark:border-gray-600">

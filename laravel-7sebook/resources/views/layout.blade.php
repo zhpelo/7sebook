@@ -56,13 +56,32 @@
                         热门搜索
                     </a>
                     @auth
-                        <div class="ml-2 pl-2 border-l border-gray-300 dark:border-gray-600 flex items-center space-x-1">
-                            <a href="{{ route('profile') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all {{ request()->routeIs('profile') || request()->routeIs('my_likes') || request()->routeIs('my_favorites') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                                <i class="fas fa-user mr-1"></i>{{ auth()->user()->username }}
-                            </a>
-                            <a href="{{ route('logout') }}" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all">
-                                <i class="fas fa-sign-out-alt"></i>
-                            </a>
+                        <div class="ml-2 pl-2 border-l border-gray-300 dark:border-gray-600 flex items-center">
+                            <!-- 用户下拉菜单 -->
+                            <div class="relative" id="userMenuContainer">
+                                <button id="userMenuToggle" class="px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center space-x-1 {{ request()->routeIs('profile') || request()->routeIs('my_likes') || request()->routeIs('my_favorites') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                                    <i class="fas fa-user mr-1"></i>
+                                    <span>{{ auth()->user()->username }}</span>
+                                    <i class="fas fa-chevron-down ml-1 text-xs transition-transform" id="userMenuIcon"></i>
+                                </button>
+                                
+                                <!-- 下拉菜单 -->
+                                <div id="userMenuDropdown" class="hidden absolute right-0 mt-2 w-30 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                                    <a href="{{ route('profile') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {{ request()->routeIs('profile') ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : '' }}">
+                                        <i class="fas fa-user-circle mr-2"></i>个人资料
+                                    </a>
+                                    <a href="{{ route('my_favorites') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {{ request()->routeIs('my_favorites') ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : '' }}">
+                                        <i class="fas fa-star mr-2"></i>我的收藏
+                                    </a>
+                                    <a href="{{ route('my_likes') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {{ request()->routeIs('my_likes') ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : '' }}">
+                                        <i class="fas fa-heart mr-2"></i>我的点赞
+                                    </a>
+                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                                    <a href="{{ route('logout') }}" class="block px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                        <i class="fas fa-sign-out-alt mr-2"></i>退出登录
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     @else
                         <div class="ml-2 pl-2 border-l border-gray-300 dark:border-gray-600 flex items-center space-x-1">
@@ -293,10 +312,48 @@
             }, 3000);
         }
         
+        // 用户下拉菜单
+        function initUserMenu() {
+            const menuToggle = document.getElementById('userMenuToggle');
+            const menuDropdown = document.getElementById('userMenuDropdown');
+            const menuIcon = document.getElementById('userMenuIcon');
+            
+            if (menuToggle && menuDropdown) {
+                menuToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isHidden = menuDropdown.classList.contains('hidden');
+                    
+                    if (isHidden) {
+                        menuDropdown.classList.remove('hidden');
+                        if (menuIcon) {
+                            menuIcon.classList.add('rotate-180');
+                        }
+                    } else {
+                        menuDropdown.classList.add('hidden');
+                        if (menuIcon) {
+                            menuIcon.classList.remove('rotate-180');
+                        }
+                    }
+                });
+                
+                // 点击外部区域关闭菜单
+                document.addEventListener('click', function(e) {
+                    const container = document.getElementById('userMenuContainer');
+                    if (container && !container.contains(e.target)) {
+                        menuDropdown.classList.add('hidden');
+                        if (menuIcon) {
+                            menuIcon.classList.remove('rotate-180');
+                        }
+                    }
+                });
+            }
+        }
+        
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
             initMobileMenu();
             initNotifications();
+            initUserMenu();
         });
     </script>
 </body>

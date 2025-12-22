@@ -49,7 +49,7 @@
             <div class="text-center space-y-2">
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     还没有账号？
-                    <a href="{{ route('register') }}" class="text-red-600 dark:text-red-400 font-medium hover:text-red-700 dark:hover:text-red-300">立即注册</a>
+                    <a href="{{ route('register', request()->has('intended') ? ['intended' => request()->get('intended')] : (session('intended_url') ? ['intended' => session('intended_url')] : [])) }}" class="text-red-600 dark:text-red-400 font-medium hover:text-red-700 dark:hover:text-red-300">立即注册</a>
                 </p>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     <a href="{{ route('forgot_password') }}" class="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">忘记密码？</a>

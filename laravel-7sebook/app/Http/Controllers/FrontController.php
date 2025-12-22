@@ -175,6 +175,11 @@ class FrontController extends Controller
     public function download(Request $request, $id)
     {
         if (!Auth::check()) {
+            // 保存当前详情页URL到session，登录后返回
+            $bookId = (int) $id;
+            if ($bookId > 0) {
+                session(['intended_url' => route('book.detail', $bookId)]);
+            }
             return redirect()->route('login');
         }
 
@@ -227,8 +232,14 @@ class FrontController extends Controller
     /**
      * 显示登录页面
      */
-    public function showLogin()
+    public function showLogin(Request $request)
     {
+        // 如果URL中有intended参数，保存到session
+        $intended = $request->get('intended');
+        if ($intended) {
+            session(['intended_url' => $intended]);
+        }
+        
         return view('login', [
             'action' => 'login',
         ]);
@@ -251,6 +262,14 @@ class FrontController extends Controller
 
         if ($user && Hash::check($password, $user->password_hash)) {
             Auth::login($user);
+            
+            // 检查是否有保存的intended URL，如果有则重定向到那里
+            $intendedUrl = session('intended_url');
+            if ($intendedUrl) {
+                session()->forget('intended_url');
+                return redirect($intendedUrl);
+            }
+            
             return redirect()->route('home');
         }
 
@@ -269,8 +288,14 @@ class FrontController extends Controller
     /**
      * 显示注册页面
      */
-    public function showRegister()
+    public function showRegister(Request $request)
     {
+        // 如果URL中有intended参数，保存到session
+        $intended = $request->get('intended');
+        if ($intended) {
+            session(['intended_url' => $intended]);
+        }
+        
         return view('register', [
             'action' => 'register',
         ]);
@@ -322,6 +347,13 @@ class FrontController extends Controller
         ]);
 
         Auth::login($user);
+
+        // 检查是否有保存的intended URL，如果有则重定向到那里
+        $intendedUrl = session('intended_url');
+        if ($intendedUrl) {
+            session()->forget('intended_url');
+            return redirect($intendedUrl);
+        }
 
         return redirect()->route('home');
     }

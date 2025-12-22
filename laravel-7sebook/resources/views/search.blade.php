@@ -37,7 +37,7 @@
 
     <!-- 书籍列表 -->
     @if(!empty($books))
-        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6  gap-2 md:gap-4 lg:gap-6 mt-4 md:mt-6">
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6  gap-2 md:gap-4 lg:gap-6 mt-4 md:mt-6">
             @foreach($books as $book)
                 <a href="{{ route('book.detail', $book['id']) }}" class="group">
                     <div class="book-card bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm hover:shadow-lg border border-gray-200 dark:border-gray-700">
