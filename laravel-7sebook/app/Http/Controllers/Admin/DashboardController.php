@@ -63,6 +63,14 @@ class DashboardController extends Controller
             $dailyBookCounts[$data->date] = (int) $data->book_count;
         }
 
+        // 获取系统信息
+        $systemInfo = [
+            'server_os' => PHP_OS . ' ' . (php_uname('r') ?? ''),
+            'mysql_version' => $this->getMySQLVersion(),
+            'timezone' => config('app.timezone') . ' (' . date_default_timezone_get() . ')',
+            'debug_mode' => config('app.debug') ? '开启' : '关闭',
+        ];
+
         return view('admin.dashboard', [
             'action' => 'dashboard',
             'pageTitle' => '仪表盘 - 七秒电子书后台管理',
@@ -70,7 +78,21 @@ class DashboardController extends Controller
             'dates' => $dates,
             'daily_user_counts' => $dailyUserCounts,
             'daily_book_counts' => $dailyBookCounts,
+            'system_info' => $systemInfo,
         ]);
+    }
+
+    /**
+     * 获取MySQL版本
+     */
+    private function getMySQLVersion()
+    {
+        try {
+            $version = DB::selectOne('SELECT VERSION() as version');
+            return $version->version ?? '未知';
+        } catch (\Exception $e) {
+            return '未知';
+        }
     }
 }
 
