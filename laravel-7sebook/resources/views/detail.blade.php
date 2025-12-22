@@ -66,28 +66,46 @@
                     </div>
 
                     <!-- 书籍信息 -->
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm md:text-base">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm md:text-base mb-4">
                         <div class="flex items-center text-gray-600 dark:text-gray-400">
-                            <i class="fas fa-file-alt w-5 text-gray-400 dark:text-gray-500 mr-2"></i>
-                            <span>文件格式：{{ $book->file_format }}</span>
+                            <i class="fas fa-file-alt text-gray-400 dark:text-gray-500 mr-2"></i>
+                            <span>格式：{{ $book->file_format }}</span>
                         </div>
                         <div class="flex items-center text-gray-600 dark:text-gray-400">
-                            <i class="fas fa-weight w-5 text-gray-400 dark:text-gray-500 mr-2"></i>
-                            <span>文件大小：{{ \App\Helpers\FileHelper::formatFileSize($book->file_size) }}</span>
+                            <i class="fas fa-weight text-gray-400 dark:text-gray-500 mr-2"></i>
+                            <span>大小：{{ \App\Helpers\FileHelper::formatFileSize($book->file_size) }}</span>
                         </div>
                         @if($book->publisher)
                             <div class="flex items-center text-gray-600 dark:text-gray-400">
-                                <i class="fas fa-building w-5 text-gray-400 dark:text-gray-500 mr-2"></i>
+                                <i class="fas fa-building text-gray-400 dark:text-gray-500 mr-2"></i>
                                 <span>{{ $book->publisher }}</span>
                             </div>
                         @endif
                         @if($book->published_at)
                             <div class="flex items-center text-gray-600 dark:text-gray-400">
-                                <i class="fas fa-calendar w-5 text-gray-400 dark:text-gray-500 mr-2"></i>
-                                <span>{{ $book->published_at }}</span>
+                                <i class="fas fa-calendar text-gray-400 dark:text-gray-500 mr-2"></i>
+                                <span>出版日期：{{ $book->published_at->format('Y-m-d') }}</span>
                             </div>
                         @endif
                     </div>
+
+                    <!-- 标签 -->
+                    @if($book->tags && $book->tags->count() > 0)
+                        <div class="mb-4">
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-tags text-gray-400 dark:text-gray-500 mr-2"></i>
+                                <span class="text-sm text-gray-600 dark:text-gray-400">标签：</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach($book->tags as $tag)
+                                    <a href="{{ route('tag.books', ['tag' => urlencode($tag->tag_name)]) }}" 
+                                       class="inline-flex items-center px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-full text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
+                                        <i class="fas fa-tag mr-1.5 text-xs"></i>{{ $tag->tag_name }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

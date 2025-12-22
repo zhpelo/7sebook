@@ -25,6 +25,7 @@ Route::get('/search', [FrontController::class, 'index'])->name('search');
 // 书籍相关
 Route::get('/book/{id}', [FrontController::class, 'detail'])->name('book.detail');
 Route::get('/download/{id}', [FrontController::class, 'download'])->name('book.download')->middleware('auth');
+Route::get('/tag/{tag}', [FrontController::class, 'tagBooks'])->name('tag.books');
 
 // 用户认证
 Route::get('/login', [FrontController::class, 'showLogin'])->name('login');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Models\BookTag;
 use App\Models\User;
 use App\Services\BookService;
 use App\Services\BookLikeService;
@@ -836,5 +837,41 @@ class FrontController extends Controller
         } catch (\Exception $e) {
             return response('生成 sitemap 失败: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * 标签书籍列表
+     */
+    public function tagBooks(Request $request, $tag)
+    {
+        $tagName = urldecode($tag);
+        
+        if (empty($tagName)) {
+            return redirect()->route('home')->with('error', '标签名称不能为空');
+        }
+
+        // 获取该标签下的所有书籍（去重）
+        $books = Book::select('books.*')
+            ->join('book_tags', 'books.id', '=', 'book_tags.book_id')
+            ->where('book_tags.tag_name', $tagName)
+            ->groupBy('books.id')
+            ->orderByDesc('books.created_at')
+            ->paginate(24);
+
+        // 获取标签使用次数（去重book_id）
+        $tagUsageCount = DB::table('book_tags')
+            ->where('tag_name', $tagName)
+            ->distinct('book_id')
+            ->count('book_id');
+
+        return view('tag_books', [
+            'action' => 'tag_books',
+            'tag_name' => $tagName,
+            'books' => $books,
+            'tag_usage_count' => $tagUsageCount,
+            'pageTitle' => $tagName . ' - 标签 - 七秒电子书',
+            'pageDescription' => '查看标签"' . htmlspecialchars($tagName) . '"下的所有电子书，共' . $tagUsageCount . '本',
+            'pageKeywords' => htmlspecialchars($tagName) . ',电子书,标签,七秒电子书',
+        ]);
     }
 }
