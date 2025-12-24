@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\EmailLog;
-use App\Mail\PasswordResetMail;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
@@ -214,13 +212,41 @@ class AuthController extends Controller
         );
 
         try {
+            // 使用 PHP mail() 函数发送邮件
+            $fromEmail = config('mail.from.address', 'noreply@7sebook.com');
+            $fromName = config('mail.from.name', '七秒电子书');
+            
+            // 设置邮件头
+            $headers = [];
+            $headers[] = "MIME-Version: 1.0";
+            $headers[] = "Content-Type: text/html; charset=UTF-8";
+            $headers[] = "From: " . mb_encode_mimeheader($fromName, 'UTF-8') . " <{$fromEmail}>";
+            $headers[] = "Reply-To: {$fromEmail}";
+            $headers[] = "X-Mailer: PHP/" . phpversion();
+            
+            $headersString = implode("\r\n", $headers);
+            
             // 发送邮件
-            Mail::to($email)->send(new PasswordResetMail($resetUrl, $user->username));
+            $mailSent = mail($email, mb_encode_mimeheader($subject, 'UTF-8'), $mailContent, $headersString);
             
-            // 更新邮件记录状态为已发送
-            $emailLog->updateStatus(EmailLog::STATUS_SENT);
-            
-            return redirect()->route('forgot_password')->with('message', '密码重置链接已发送到您的邮箱，请查收。如未收到，请检查垃圾邮件文件夹。');
+            if ($mailSent) {
+                // 更新邮件记录状态为已发送
+                $emailLog->updateStatus(EmailLog::STATUS_SENT);
+                
+                return redirect()->route('forgot_password')->with('message', '密码重置链接已发送到您的邮箱，请查收。如未收到，请检查垃圾邮件文件夹。');
+            } else {
+                // 更新邮件记录状态为失败
+                $errorMessage = 'PHP mail() 函数返回 false，邮件可能未成功发送';
+                $emailLog->updateStatus(EmailLog::STATUS_FAILED, $errorMessage);
+                
+                // 记录错误日志
+                Log::error('密码重置邮件发送失败', [
+                    'email' => $email,
+                    'error' => $errorMessage,
+                ]);
+                
+                return redirect()->route('forgot_password')->with('error', '邮件发送失败，请稍后再试或联系管理员。');
+            }
         } catch (\Exception $e) {
             // 更新邮件记录状态为失败
             $emailLog->updateStatus(EmailLog::STATUS_FAILED, $e->getMessage());
