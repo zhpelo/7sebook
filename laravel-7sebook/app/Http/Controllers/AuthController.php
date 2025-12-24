@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\EmailLog;
+use App\Mail\PasswordResetMail;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -193,9 +197,42 @@ class AuthController extends Controller
         // 生成重置链接
         $resetUrl = route('reset_password', ['token' => $token]);
 
-        // TODO: 发送邮件（这里暂时只显示消息和链接）
-        // 实际部署时应该通过邮件发送链接，而不是在页面上显示
-        return redirect()->route('forgot_password')->with('message', '密码重置链接已生成，请查看您的邮箱（功能开发中，重置链接：' . $resetUrl . '）');
+        // 准备邮件内容
+        $subject = '七秒电子书 - 密码重置';
+        $mailContent = view('emails.password_reset', [
+            'resetUrl' => $resetUrl,
+            'username' => $user->username,
+        ])->render();
+
+        // 记录邮件发送（pending状态）
+        $emailLog = EmailLog::logEmail(
+            $email,
+            $subject,
+            $mailContent,
+            EmailLog::TYPE_PASSWORD_RESET,
+            EmailLog::STATUS_PENDING
+        );
+
+        try {
+            // 发送邮件
+            Mail::to($email)->send(new PasswordResetMail($resetUrl, $user->username));
+            
+            // 更新邮件记录状态为已发送
+            $emailLog->updateStatus(EmailLog::STATUS_SENT);
+            
+            return redirect()->route('forgot_password')->with('message', '密码重置链接已发送到您的邮箱，请查收。如未收到，请检查垃圾邮件文件夹。');
+        } catch (\Exception $e) {
+            // 更新邮件记录状态为失败
+            $emailLog->updateStatus(EmailLog::STATUS_FAILED, $e->getMessage());
+            
+            // 记录错误日志
+            Log::error('密码重置邮件发送失败', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return redirect()->route('forgot_password')->with('error', '邮件发送失败，请稍后再试或联系管理员。');
+        }
     }
 
     /**

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\BookController as AdminBookController;
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\Admin\DownloadController as AdminDownloadController;
 use App\Http\Controllers\Admin\SearchHistoryController as AdminSearchHistoryController;
+use App\Http\Controllers\Admin\EmailLogController as AdminEmailLogController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -97,6 +98,10 @@ Route::prefix('admin')->middleware('admin')->group(function () {
 
     // 搜索历史管理
     Route::get('/search-history', [AdminSearchHistoryController::class, 'searchHistory'])->name('admin.search_history');
+
+    // 邮件发送记录管理
+    Route::get('/email-logs', [AdminEmailLogController::class, 'emailLogs'])->name('admin.email_logs');
+    Route::get('/email-logs/{id}', [AdminEmailLogController::class, 'viewEmailLog'])->name('admin.view_email_log');
 
     // 标签管理
     Route::get('/tags', [AdminTagController::class, 'tags'])->name('admin.tags');

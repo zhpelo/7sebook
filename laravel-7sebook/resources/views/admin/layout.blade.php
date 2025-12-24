@@ -40,6 +40,10 @@
                 <i class="fas fa-search w-5 mr-3"></i>
                 <span>搜索历史</span>
             </a>
+            <a href="{{ route('admin.email_logs') }}" class="flex items-center px-4 py-3 rounded-lg mb-1 transition-all {{ ($action ?? '') === 'email_logs' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                <i class="fas fa-envelope w-5 mr-3"></i>
+                <span>邮件记录</span>
+            </a>
             <a href="{{ route('admin.tags') }}" class="flex items-center px-4 py-3 rounded-lg mb-1 transition-all {{ ($action ?? '') === 'tags' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                 <i class="fas fa-tags w-5 mr-3"></i>
                 <span>标签管理</span>
@@ -95,6 +99,9 @@
                 </a>
                 <a href="{{ route('admin.search_history') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'search_history' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                     <i class="fas fa-search mr-2"></i>搜索历史
+                </a>
+                <a href="{{ route('admin.email_logs') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'email_logs' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    <i class="fas fa-envelope mr-2"></i>邮件记录
                 </a>
                 <a href="{{ route('admin.tags') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'tags' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                     <i class="fas fa-tags mr-2"></i>标签管理
