@@ -1,7 +1,13 @@
 <?php
 
-use App\Http\Controllers\FrontController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BookController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\RankingController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\LikeController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\Admin\AdminController as LegacyAdminController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
@@ -19,48 +25,48 @@ Route::get('/storage/covers_sm/{path}', [ImageController::class, 'thumbnail'])
     ->name('image.thumbnail');
 
 // 前台路由
-Route::get('/', [FrontController::class, 'index'])->name('home');
-Route::get('/search', [FrontController::class, 'index'])->name('search');
+Route::get('/', [SearchController::class, 'index'])->name('home');
+Route::get('/search', [SearchController::class, 'index'])->name('search');
 
 // 书籍相关
-Route::get('/book/{id}', [FrontController::class, 'detail'])->name('book.detail');
-Route::get('/download/{id}', [FrontController::class, 'download'])->name('book.download')->middleware('auth');
-Route::get('/tag/{tag}', [FrontController::class, 'tagBooks'])->name('tag.books');
+Route::get('/book/{id}', [BookController::class, 'detail'])->name('book.detail');
+Route::get('/download/{id}', [BookController::class, 'download'])->name('book.download')->middleware('auth');
+Route::get('/tag/{tag}', [BookController::class, 'tagBooks'])->name('tag.books');
 
 // 用户认证
-Route::get('/login', [FrontController::class, 'showLogin'])->name('login');
-Route::post('/login', [FrontController::class, 'handleLogin'])->name('login.post');
-Route::get('/register', [FrontController::class, 'showRegister'])->name('register');
-Route::post('/register', [FrontController::class, 'handleRegister'])->name('register.post');
-Route::get('/logout', [FrontController::class, 'logout'])->name('logout');
-Route::get('/forgot-password', [FrontController::class, 'showForgotPassword'])->name('forgot_password');
-Route::post('/forgot-password', [FrontController::class, 'handleForgotPassword'])->name('forgot_password.post');
-Route::get('/reset-password', [FrontController::class, 'showResetPassword'])->name('reset_password');
-Route::post('/reset-password', [FrontController::class, 'handleResetPassword'])->name('reset_password.post');
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'handleLogin'])->name('login.post');
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [AuthController::class, 'handleRegister'])->name('register.post');
+Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('forgot_password');
+Route::post('/forgot-password', [AuthController::class, 'handleForgotPassword'])->name('forgot_password.post');
+Route::get('/reset-password', [AuthController::class, 'showResetPassword'])->name('reset_password');
+Route::post('/reset-password', [AuthController::class, 'handleResetPassword'])->name('reset_password.post');
 
 // 用户中心（需要登录）
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [FrontController::class, 'profile'])->name('profile');
-    Route::post('/profile', [FrontController::class, 'updateProfile'])->name('profile.update');
-    Route::get('/my-likes', [FrontController::class, 'myLikes'])->name('my_likes');
-    Route::get('/my-favorites', [FrontController::class, 'myFavorites'])->name('my_favorites');
+    Route::get('/profile', [UserController::class, 'profile'])->name('profile');
+    Route::post('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
+    Route::get('/my-likes', [UserController::class, 'myLikes'])->name('my_likes');
+    Route::get('/my-favorites', [UserController::class, 'myFavorites'])->name('my_favorites');
 });
 
 // 点赞和收藏（AJAX）
 Route::middleware('auth')->group(function () {
-    Route::post('/like', [FrontController::class, 'like'])->name('book.like');
-    Route::post('/unlike', [FrontController::class, 'unlike'])->name('book.unlike');
-    Route::post('/favorite', [FrontController::class, 'favorite'])->name('book.favorite');
-    Route::post('/unfavorite', [FrontController::class, 'unfavorite'])->name('book.unfavorite');
+    Route::post('/like', [LikeController::class, 'like'])->name('book.like');
+    Route::post('/unlike', [LikeController::class, 'unlike'])->name('book.unlike');
+    Route::post('/favorite', [LikeController::class, 'favorite'])->name('book.favorite');
+    Route::post('/unfavorite', [LikeController::class, 'unfavorite'])->name('book.unfavorite');
 });
 
 // 其他页面
-Route::get('/popular-searches', [FrontController::class, 'popularSearches'])->name('popular_searches');
-Route::get('/download-ranking', [FrontController::class, 'downloadRanking'])->name('download_ranking');
-Route::get('/latest', [FrontController::class, 'latest'])->name('latest');
+Route::get('/popular-searches', [SearchController::class, 'popularSearches'])->name('popular_searches');
+Route::get('/download-ranking', [RankingController::class, 'downloadRanking'])->name('download_ranking');
+Route::get('/latest', [RankingController::class, 'latest'])->name('latest');
 
 // Sitemap
-Route::get('/sitemap.xml', [FrontController::class, 'generateSitemap'])->name('sitemap');
+Route::get('/sitemap.xml', [SitemapController::class, 'generateSitemap'])->name('sitemap');
 
 // 后台管理路由（需要管理员权限）
 Route::prefix('admin')->middleware('admin')->group(function () {
