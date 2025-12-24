@@ -84,7 +84,7 @@
                         @if($book->published_at)
                             <div class="flex items-center text-gray-600 dark:text-gray-400">
                                 <i class="fas fa-calendar text-gray-400 dark:text-gray-500 mr-2"></i>
-                                <span>出版日期：{{ $book->published_at->format('Y-m-d') }}</span>
+                                <span title="出版日期">出版于{{ $book->published_at->format('Y年m月') }}</span>
                             </div>
                         @endif
                     </div>
@@ -124,28 +124,7 @@
                 <h2 class="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-6">相关推荐</h2>
                 <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-4 lg:gap-6">
                     @foreach($related_books as $relatedBook)
-                        <a href="{{ route('book.detail', $relatedBook['id']) }}" class="group">
-                            <div class="book-card bg-gray-50 dark:bg-gray-700/50 rounded-lg overflow-hidden hover:shadow-md border border-gray-200 dark:border-gray-600">
-                                <div class="aspect-[3/4] bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
-                                    @if(!empty($relatedBook['cover_url']))
-                                        <img src="{{ \App\Helpers\ImageHelper::getThumbnailUrl($relatedBook['cover_url']) }}" 
-                                             alt="{{ $relatedBook['title'] }}" 
-                                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                             loading="lazy">
-                                    @else
-                                        <div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
-                                            <i class="fas fa-book text-2xl"></i>
-                                        </div>
-                                    @endif
-                                </div>
-                                <div class="p-2">
-                                    <h3 class="font-medium text-xs mb-1 line-clamp-2 text-gray-800 dark:text-gray-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                                        {{ $relatedBook['title'] }}
-                                    </h3>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ $relatedBook['author'] ?: '未知作者' }}</p>
-                                </div>
-                            </div>
-                        </a>
+                        @include('partials.book_card', ['book' => $relatedBook])
                     @endforeach
                 </div>
             </div>

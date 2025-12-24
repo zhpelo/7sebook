@@ -26,33 +26,7 @@
     @if($books->count() > 0)
         <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-4 lg:gap-6">
             @foreach($books as $book)
-                <a href="{{ route('book.detail', $book->id) }}" class="group">
-                    <div class="book-card bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm hover:shadow-lg border border-gray-200 dark:border-gray-700">
-                        <div class="aspect-[3/4] bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
-                            @if($book->cover_url)
-                                <img src="{{ \App\Helpers\ImageHelper::getThumbnailUrl($book->cover_url) }}" 
-                                     alt="{{ $book->title }}" 
-                                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                     loading="lazy">
-                            @else
-                                <div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
-                                    <i class="fas fa-book text-3xl"></i>
-                                </div>
-                            @endif
-                            @if($book->file_format)
-                                <span class="absolute top-1 right-1 bg-gray-900 dark:bg-gray-700 bg-opacity-75 text-white text-xs px-1.5 py-0.5 rounded">
-                                    {{ strtoupper($book->file_format) }}
-                                </span>
-                            @endif
-                        </div>
-                        <div class="p-2 md:p-3">
-                            <h3 class="font-medium text-xs md:text-sm mb-1 line-clamp-2 text-gray-800 dark:text-gray-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                                {{ $book->title }}
-                            </h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ $book->author ?: '未知作者' }}</p>
-                        </div>
-                    </div>
-                </a>
+                @include('partials.book_card', ['book' => $book])
             @endforeach
         </div>
 

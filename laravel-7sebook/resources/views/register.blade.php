@@ -17,8 +17,9 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('register.post') }}">
+            <form method="POST" action="{{ route('register.post') }}" id="registerForm">
                 @csrf
+                <input type="hidden" name="_token" value="{{ csrf_token() }}" id="csrfToken">
                 <div class="mb-4">
                     <label for="reg_username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">用户名</label>
                     <div class="relative">
@@ -68,4 +69,48 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const registerForm = document.getElementById('registerForm');
+    const csrfTokenInput = document.getElementById('csrfToken');
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    
+    // 确保CSRF token是最新的
+    function updateCsrfToken() {
+        if (metaToken && csrfTokenInput) {
+            const newToken = metaToken.getAttribute('content');
+            if (newToken) {
+                csrfTokenInput.value = newToken;
+                const formToken = registerForm?.querySelector('input[name="_token"]');
+                if (formToken) {
+                    formToken.value = newToken;
+                }
+            }
+        }
+    }
+    
+    if (registerForm && csrfTokenInput) {
+        // 页面加载时更新token
+        updateCsrfToken();
+        
+        // 监听表单提交，确保使用最新的token
+        registerForm.addEventListener('submit', function(e) {
+            updateCsrfToken();
+        });
+        
+        // 如果页面提示token过期，自动刷新页面
+        @if(session('error'))
+            const errorMsg = @json(session('error'));
+            if (errorMsg && (errorMsg.includes('过期') || errorMsg.includes('419'))) {
+                setTimeout(function() {
+                    window.location.reload();
+                }, 3000);
+            }
+        @endif
+    }
+});
+</script>
+@endpush
 @endsection
