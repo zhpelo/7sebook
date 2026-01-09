@@ -80,7 +80,7 @@
                         下载排行
                     </a>
                     <a href="{{ route('popular_searches') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-all {{ request()->routeIs('popular_searches') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                        热门搜索
+                        今日热搜
                     </a>
                     @auth
                     <div class="ml-2 pl-2 border-l border-gray-300 dark:border-gray-600 flex items-center">
@@ -155,13 +155,13 @@
                     <i class="fas fa-home mr-2"></i>首页
                 </a>
                 <a href="{{ route('latest') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('latest') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                    <i class="fas fa-clock mr-2"></i>最新
+                    <i class="fas fa-clock mr-2"></i>最新书籍
                 </a>
                 <a href="{{ route('download_ranking') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('download_ranking') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                     <i class="fas fa-trophy mr-2"></i>下载排行
                 </a>
                 <a href="{{ route('popular_searches') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('popular_searches') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                    <i class="fas fa-fire mr-2"></i>热门搜索
+                    <i class="fas fa-fire mr-2"></i>今日热搜
                 </a>
                 @auth
 

@@ -106,7 +106,7 @@ class SearchController extends Controller
      */
     public function popularSearches()
     {
-        $popularSearchesList = $this->searchService->getPopularSearches(50);
+        $popularSearchesList = $this->searchService->getPopularSearches(20);
 
         return view('popular_searches', [
             'action' => 'popular_searches',
