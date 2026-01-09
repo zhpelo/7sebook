@@ -74,7 +74,7 @@
             <i class="fas fa-server text-blue-500 dark:text-blue-400 text-2xl mr-3"></i>
             <div>
                 <p class="text-xs text-gray-500 dark:text-gray-400">服务器系统</p>
-                <p class="font-semibold text-gray-900 dark:text-gray-100 text-xs">{{ $system_info['server_os'] ?? '未知' }}</p>
+                <p class="font-semibold text-gray-900 dark:text-gray-100">{{ $system_info['server_os'] ?? '未知' }}</p>
             </div>
         </div>
         <div class="flex items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
@@ -88,7 +88,7 @@
             <i class="fas fa-globe text-indigo-500 dark:text-indigo-400 text-2xl mr-3"></i>
             <div>
                 <p class="text-xs text-gray-500 dark:text-gray-400">当前时区</p>
-                <p class="font-semibold text-gray-900 dark:text-gray-100 text-xs">{{ $system_info['timezone'] ?? '未知' }}</p>
+                <p class="font-semibold text-gray-900 dark:text-gray-100">{{ $system_info['timezone'] ?? '未知' }}</p>
             </div>
         </div>
         <div class="flex items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
