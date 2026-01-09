@@ -15,6 +15,13 @@
 @section('content')
 <div class="py-4 md:py-6">
     @if(isset($book))
+        <!-- 错误信息提示 -->
+        @if(session('error'))
+            <div class="max-w-4xl mx-auto mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+                <i class="fas fa-exclamation-circle mr-2"></i>{{ session('error') }}
+            </div>
+        @endif
+        
         <!-- 书籍信息卡片 -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden mb-4 md:mb-6 border border-gray-200 dark:border-gray-700">
             <div class="flex flex-col md:flex-row">
@@ -139,10 +146,11 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 下载功能 - 防止重复点击
+    // 下载功能 - 简单实现，防止重复点击
     const downloadBtn = document.getElementById('btn-download');
     if (downloadBtn) {
         let isDownloading = false;
+        
         downloadBtn.addEventListener('click', function(e) {
             e.preventDefault();
             
@@ -161,20 +169,17 @@ document.addEventListener('DOMContentLoaded', function() {
             downloadIcon.classList.remove('fa-download');
             downloadIcon.classList.add('fa-spinner', 'fa-spin');
             
-            // 创建隐藏的 iframe 来触发下载
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = downloadUrl;
-            document.body.appendChild(iframe);
+            // 直接跳转到下载链接
+            // 如果下载失败，服务器会重定向回详情页，错误信息会自动显示在页面顶部
+            window.location.href = downloadUrl;
             
-            // 10秒后重新启用按钮（防止重复点击）
+            // 10秒后恢复按钮状态（防止页面卡住）
             setTimeout(() => {
                 isDownloading = false;
                 this.disabled = false;
                 downloadText.textContent = '下载';
                 downloadIcon.classList.remove('fa-spinner', 'fa-spin');
                 downloadIcon.classList.add('fa-download');
-                document.body.removeChild(iframe);
             }, 10000);
         });
     }
