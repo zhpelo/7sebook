@@ -94,10 +94,6 @@
                     <!-- 标签 -->
                     @if($book->tags && $book->tags->count() > 0)
                         <div class="mb-4">
-                            <div class="flex items-center mb-2">
-                                <i class="fas fa-tags text-gray-400 dark:text-gray-500 mr-2"></i>
-                                <span class="text-sm text-gray-600 dark:text-gray-400">标签：</span>
-                            </div>
                             <div class="flex flex-wrap gap-2">
                                 @foreach($book->tags as $tag)
                                     <a href="{{ route('tag.books', ['tag' => urlencode($tag->tag_name)]) }}" 
