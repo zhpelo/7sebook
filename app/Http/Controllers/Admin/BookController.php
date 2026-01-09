@@ -145,26 +145,18 @@ class BookController extends Controller
             'title' => 'required|string',
             'author' => 'required|string',
             'description' => 'nullable|string',
-            'category' => 'nullable|string',
             'publisher' => 'nullable|string',
             'page_count' => 'nullable|integer',
             'file_name' => 'nullable|string',
-            'file_path' => 'nullable|string',
-            'file_size' => 'nullable|string',
-            'file_format' => 'nullable|string',
             'tags' => 'nullable|string',
         ]);
 
         $book->title = trim($request->input('title'));
         $book->author = trim($request->input('author'));
         $book->description = trim($request->input('description', ''));
-        $book->category = trim($request->input('category', ''));
         $book->publisher = trim($request->input('publisher', ''));
         $book->page_count = (int) $request->input('page_count', 0);
         $book->file_name = trim($request->input('file_name', ''));
-        $book->file_path = trim($request->input('file_path', ''));
-        $book->file_size = trim($request->input('file_size', ''));
-        $book->file_format = trim($request->input('file_format', ''));
         $book->save();
 
         // 删除旧标签

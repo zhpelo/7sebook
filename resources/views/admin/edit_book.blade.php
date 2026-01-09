@@ -38,55 +38,30 @@
 
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">分类</label>
-                    <input type="text" id="category" name="category" value="{{ $book->category ?? '' }}"
-                           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                </div>
-                <div>
                     <label for="publisher" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">出版社</label>
                     <input type="text" id="publisher" name="publisher" value="{{ $book->publisher ?? '' }}"
                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                 </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label for="page_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">页数</label>
                     <input type="number" id="page_count" name="page_count" min="0" value="{{ $book->page_count ?? 0 }}"
                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                 </div>
-                <div>
-                    <label for="file_format" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">文件格式</label>
-                    <select id="file_format" name="file_format" 
-                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                        <option value="">请选择</option>
-                        <option value="PDF" {{ ($book->file_format ?? '') === 'PDF' ? 'selected' : '' }}>PDF</option>
-                        <option value="EPUB" {{ ($book->file_format ?? '') === 'EPUB' ? 'selected' : '' }}>EPUB</option>
-                        <option value="MOBI" {{ ($book->file_format ?? '') === 'MOBI' ? 'selected' : '' }}>MOBI</option>
-                        <option value="AZW3" {{ ($book->file_format ?? '') === 'AZW3' ? 'selected' : '' }}>AZW3</option>
-                        <option value="TXT" {{ ($book->file_format ?? '') === 'TXT' ? 'selected' : '' }}>TXT</option>
-                        <option value="ZIP" {{ ($book->file_format ?? '') === 'ZIP' ? 'selected' : '' }}>ZIP</option>
-                    </select>
-                </div>
             </div>
 
             <div class="mb-4">
                 <label for="file_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">文件名</label>
-                <input type="text" id="file_name" name="file_name" value="{{ $book->file_name ?? '' }}"
+                <input type="text" id="file_name" name="file_name" value="{{ $book->file_name ?? '' }}" required
                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
             </div>
 
             <div class="mb-4">
                 <label for="file_path" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">文件路径</label>
-                <input type="text" id="file_path" name="file_path" value="{{ $book->file_path ?? '' }}"
-                       class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <input type="text" id="file_path" name="file_path" value="{{ $book->file_path ?? '' }}" readonly
+                       class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-400 cursor-not-allowed">
             </div>
 
-            <div class="mb-4">
-                <label for="file_size" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">文件大小</label>
-                <input type="text" id="file_size" name="file_size" value="{{ $book->file_size ?? '' }}" placeholder="例如: 2.5 MB"
-                       class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-            </div>
+         
 
             <div class="mb-6">
                 <label for="tags" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">标签</label>
