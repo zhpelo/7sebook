@@ -96,6 +96,11 @@ class BookController extends Controller
             return redirect()->route('home')->with('error', '无效的书籍ID');
         }
 
+        // 检查短时间内是否重复请求下载同一本书（10秒内）
+        if (!$this->downloadService->canDownload($userId, $bookId, 10)) {
+            return redirect()->route('book.detail', $bookId)->with('error', '下载请求过于频繁，请稍后再试');
+        }
+
         // 获取书籍信息
         $book = Book::find($bookId);
 
@@ -105,6 +110,8 @@ class BookController extends Controller
 
         // 使用原子操作尝试记录下载日志
         if (!$this->downloadService->tryLogDownload($userId, $bookId)) {
+            // 清除下载锁，因为下载失败
+            $this->downloadService->clearDownloadLock($userId, $bookId);
             return redirect()->route('book.detail', $bookId)->with('error', '今日下载次数已达上限（5次），请明天再试');
         }
 
@@ -112,6 +119,8 @@ class BookController extends Controller
         $filepath = Storage::disk('local')->path($book->file_path);
 
         if (!file_exists($filepath)) {
+            // 清除下载锁，因为文件不存在
+            $this->downloadService->clearDownloadLock($userId, $bookId);
             return redirect()->route('book.detail', $bookId)->with('error', '文件不存在');
         }
 

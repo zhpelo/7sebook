@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DownloadLog;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -79,5 +80,40 @@ class DownloadService
         return DownloadLog::where('user_id', $userId)
             ->whereBetween('download_time', [$todayStart, $todayEnd])
             ->count();
+    }
+
+    /**
+     * 检查用户是否在短时间内重复请求下载同一本书
+     * 
+     * @param int $userId 用户ID
+     * @param int $bookId 书籍ID
+     * @param int $seconds 时间间隔（秒），默认10秒
+     * @return bool 如果允许下载返回true，否则返回false
+     */
+    public function canDownload(int $userId, int $bookId, int $seconds = 10): bool
+    {
+        $cacheKey = "download_lock:{$userId}:{$bookId}";
+        
+        // 检查缓存中是否存在下载锁
+        if (Cache::has($cacheKey)) {
+            return false;
+        }
+        
+        // 设置下载锁，有效期 $seconds 秒
+        Cache::put($cacheKey, true, $seconds);
+        
+        return true;
+    }
+
+    /**
+     * 清除下载锁（在下载成功后调用，可选）
+     * 
+     * @param int $userId 用户ID
+     * @param int $bookId 书籍ID
+     */
+    public function clearDownloadLock(int $userId, int $bookId): void
+    {
+        $cacheKey = "download_lock:{$userId}:{$bookId}";
+        Cache::forget($cacheKey);
     }
 }

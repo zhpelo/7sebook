@@ -41,10 +41,12 @@
                     <!-- 操作按钮 -->
                     <div class="flex flex-wrap gap-3 mb-6">
                         @auth
-                            <a href="{{ route('book.download', $book->id) }}" 
-                               class="px-6 md:px-8 py-3 md:py-3.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white rounded-xl transition-all font-medium text-base shadow-md hover:shadow-lg">
-                                <i class="fas fa-download mr-2"></i> 下载
-                            </a>
+                            <button id="btn-download" 
+                                    data-book-id="{{ $book->id }}"
+                                    data-download-url="{{ route('book.download', $book->id) }}"
+                                    class="btn-download px-6 md:px-8 py-3 md:py-3.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white rounded-xl transition-all font-medium text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-download mr-2"></i> <span class="download-text">下载</span>
+                            </button>
                             <button class="btn-like px-5 md:px-6 py-3 md:py-3.5 rounded-xl font-medium active:scale-95 transition-all {{ $book->is_liked ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300' }} hover:shadow-md" 
                                     data-book-id="{{ $book->id }}" 
                                     data-liked="{{ $book->is_liked ? '1' : '0' }}">
@@ -141,6 +143,46 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 下载功能 - 防止重复点击
+    const downloadBtn = document.getElementById('btn-download');
+    if (downloadBtn) {
+        let isDownloading = false;
+        downloadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (isDownloading) {
+                return;
+            }
+            
+            isDownloading = true;
+            const downloadUrl = this.dataset.downloadUrl;
+            const downloadText = this.querySelector('.download-text');
+            const downloadIcon = this.querySelector('i');
+            
+            // 禁用按钮并显示加载状态
+            this.disabled = true;
+            downloadText.textContent = '下载中...';
+            downloadIcon.classList.remove('fa-download');
+            downloadIcon.classList.add('fa-spinner', 'fa-spin');
+            
+            // 创建隐藏的 iframe 来触发下载
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = downloadUrl;
+            document.body.appendChild(iframe);
+            
+            // 10秒后重新启用按钮（防止重复点击）
+            setTimeout(() => {
+                isDownloading = false;
+                this.disabled = false;
+                downloadText.textContent = '下载';
+                downloadIcon.classList.remove('fa-spinner', 'fa-spin');
+                downloadIcon.classList.add('fa-download');
+                document.body.removeChild(iframe);
+            }, 10000);
+        });
+    }
+
     // 点赞功能
     document.querySelectorAll('.btn-like').forEach(btn => {
         btn.addEventListener('click', function() {
