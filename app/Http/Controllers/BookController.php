@@ -53,10 +53,15 @@ class BookController extends Controller
         $book->like_count = $this->bookLikeService->getBookLikeCount($bookId);
         $book->favorite_count = $this->bookLikeService->getBookFavoriteCount($bookId);
 
+        $remainingDownloads = null;
         if (Auth::check()) {
             $userId = Auth::id();
             $book->is_liked = $this->bookLikeService->isBookLiked($userId, $bookId);
             $book->is_favorited = $this->bookLikeService->isBookFavorited($userId, $bookId);
+            
+            // 获取剩余下载次数（每日限制5次）
+            $todayDownloadCount = $this->downloadService->getUserDownloadCount($userId);
+            $remainingDownloads = max(0, 5 - $todayDownloadCount);
         } else {
             $book->is_liked = false;
             $book->is_favorited = false;
@@ -69,6 +74,7 @@ class BookController extends Controller
             'book' => $book,
             'related_books' => $relatedBooks,
             'book_layout' => $bookLayout,
+            'remaining_downloads' => $remainingDownloads,
             'pageTitle' => htmlspecialchars($book->title) . ' - ' . $book->author . ' - 七秒电子书',
             'pageDescription' => htmlspecialchars(strip_tags($book->description ?? '暂无简介')),
             'pageKeywords' => htmlspecialchars($book->title) . ',' . $book->author . ',电子书下载,' . $book->file_format . '电子书,免费电子书,七秒电子书,电子书资源,电子书下载网站,七秒书盘',
@@ -96,9 +102,9 @@ class BookController extends Controller
             return redirect()->route('home')->with('error', '无效的书籍ID');
         }
 
-        // 检查短时间内是否重复请求下载同一本书（10秒内）
-        if (!$this->downloadService->canDownload($userId, $bookId, 10)) {
-            return redirect()->route('book.detail', $bookId)->with('error', '下载请求过于频繁，请稍后再试');
+        // 检查短时间内是否重复请求下载（30秒内只允许一次）
+        if (!$this->downloadService->canDownload($userId, $bookId, 30)) {
+            return redirect()->route('book.detail', $bookId)->with('error', '下载请求过于频繁，请30秒后再试');
         }
 
         // 获取书籍信息

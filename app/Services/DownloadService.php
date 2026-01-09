@@ -83,37 +83,35 @@ class DownloadService
     }
 
     /**
-     * 检查用户是否在短时间内重复请求下载同一本书
+     * 检查用户是否在短时间内重复请求下载
      * 
      * @param int $userId 用户ID
      * @param int $bookId 书籍ID
-     * @param int $seconds 时间间隔（秒），默认10秒
+     * @param int $seconds 时间间隔（秒），默认30秒
      * @return bool 如果允许下载返回true，否则返回false
      */
-    public function canDownload(int $userId, int $bookId, int $seconds = 10): bool
+    public function canDownload(int $userId, int $bookId, int $seconds = 30): bool
     {
-        $cacheKey = "download_lock:{$userId}:{$bookId}";
+        // 全局下载锁：30秒内只允许一次下载请求（针对用户）
+        $globalLockKey = "download_lock:user:{$userId}";
         
-        // 检查缓存中是否存在下载锁
-        if (Cache::has($cacheKey)) {
-            return false;
-        }
+        // 使用 Cache::add() 原子操作：只在键不存在时设置值
+        // 如果键已存在，add() 返回 false，表示锁已存在
+        // 如果键不存在，add() 设置值并返回 true，表示成功获取锁
+        $lockAcquired = Cache::add($globalLockKey, true, $seconds);
         
-        // 设置下载锁，有效期 $seconds 秒
-        Cache::put($cacheKey, true, $seconds);
-        
-        return true;
+        return $lockAcquired;
     }
 
     /**
-     * 清除下载锁（在下载成功后调用，可选）
+     * 清除下载锁（在下载失败时调用，允许用户立即重试）
      * 
      * @param int $userId 用户ID
-     * @param int $bookId 书籍ID
+     * @param int $bookId 书籍ID（保留参数以保持兼容性，但实际使用全局锁）
      */
     public function clearDownloadLock(int $userId, int $bookId): void
     {
-        $cacheKey = "download_lock:{$userId}:{$bookId}";
-        Cache::forget($cacheKey);
+        $globalLockKey = "download_lock:user:{$userId}";
+        Cache::forget($globalLockKey);
     }
 }
