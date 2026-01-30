@@ -22,9 +22,33 @@ class SearchController extends Controller
     }
 
     /**
-     * 首页/搜索页
+     * 首页：随机书籍 + 热门搜索
      */
-    public function index(Request $request)
+    public function home(Request $request)
+    {
+        $bookLayout = $request->cookie('book_layout', 'grid');
+        $books = $this->bookService->getRandomBooks(48);
+        $popularSearches = $this->searchService->getPopularSearches(10);
+
+        return view('search', [
+            'action' => 'home',
+            'query' => '',
+            'type' => 'all',
+            'format' => '',
+            'books' => $books,
+            'total' => count($books),
+            'page' => 1,
+            'total_pages' => 1,
+            'limit' => 20,
+            'book_layout' => $bookLayout,
+            'popular_searches' => $popularSearches,
+        ]);
+    }
+
+    /**
+     * 搜索页：关键词搜索、分页、记录历史
+     */
+    public function search(Request $request)
     {
         $query = trim($request->get('q', ''));
         $type = $request->get('type', 'all');
@@ -34,57 +58,52 @@ class SearchController extends Controller
         $offset = ($page - 1) * $limit;
         $bookLayout = $request->cookie('book_layout', 'grid');
 
-        $books = [];
-        $total = 0;
-        $popularSearches = [];
-
-        if (!empty($query)) {
-            $queryBuilder = Book::query();
-
-            // 构建搜索条件
-            if ($type === 'all') {
-                $queryBuilder->where(function ($q) use ($query) {
-                    $q->where('title', 'like', "%{$query}%")
-                      ->orWhere('author', 'like', "%{$query}%")
-                      ->orWhere('description', 'like', "%{$query}%");
-                });
-            } elseif ($type === 'title') {
-                $queryBuilder->where('title', 'like', "%{$query}%");
-            } elseif ($type === 'author') {
-                $queryBuilder->where('author', 'like', "%{$query}%");
-            } elseif ($type === 'description') {
-                $queryBuilder->where('description', 'like', "%{$query}%");
-            }
-
-            if (!empty($format)) {
-                $queryBuilder->where('file_format', $format);
-            }
-
-            $books = $queryBuilder->orderByDesc('id')
-                ->limit($limit)
-                ->offset($offset)
-                ->get()
-                ->toArray();
-
-            $total = $queryBuilder->count();
-
-            // 记录搜索历史（只在第一页时记录）
-            if ($page === 1) {
-                $userId = Auth::check() ? Auth::id() : null;
-                $this->searchService->logSearchHistory($query, $type, $total, $userId, $request->ip());
-            }
-        } else {
-            // 没有搜索关键词时，显示随机50本带封面的书籍
-            $books = $this->bookService->getRandomBooks(48);
-            $total = count($books);
-        }
-
-        // 获取热门搜索关键词（在搜索页面和首页显示）
+        // 无关键词时跳转首页
         if (empty($query)) {
-            $popularSearches = $this->searchService->getPopularSearches(10);
+            return redirect()->route('home');
         }
 
-        $totalPages = !empty($query) ? ceil($total / $limit) : 1;
+        $queryBuilder = Book::query();
+
+        // 构建搜索条件
+        if ($type === 'all') {
+            $queryBuilder->where(function ($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                  ->orWhere('author', 'like', "%{$query}%")
+                  ->orWhere('description', 'like', "%{$query}%");
+            });
+        } elseif ($type === 'title') {
+            $queryBuilder->where('title', 'like', "%{$query}%");
+        } elseif ($type === 'author') {
+            $queryBuilder->where('author', 'like', "%{$query}%");
+        } elseif ($type === 'description') {
+            $queryBuilder->where('description', 'like', "%{$query}%");
+        }
+
+        if (!empty($format)) {
+            $queryBuilder->where('file_format', $format);
+        }
+
+        $total = $queryBuilder->count();
+        $books = (clone $queryBuilder)
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->offset($offset)
+            ->get()
+            ->toArray();
+
+        // 记录搜索历史（只在第一页时记录）
+        if ($page === 1) {
+            $this->searchService->logSearchHistory(
+                $query,
+                $type,
+                $total,
+                Auth::id(),
+                $request->ip()
+            );
+        }
+
+        $totalPages = (int) ceil($total / $limit);
 
         return view('search', [
             'action' => 'search',
@@ -97,7 +116,7 @@ class SearchController extends Controller
             'total_pages' => $totalPages,
             'limit' => $limit,
             'book_layout' => $bookLayout,
-            'popular_searches' => $popularSearches,
+            'popular_searches' => [],
         ]);
     }
 

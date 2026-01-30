@@ -25,10 +25,13 @@ Route::get('/storage/covers_sm/{path}', [ImageController::class, 'thumbnail'])
     ->where('path', '.+')
     ->name('image.thumbnail');
 
-// 前台路由
-Route::get('/', [SearchController::class, 'index'])->name('home');
-Route::get('/search', [SearchController::class, 'index'])->name('search');
+   
+// 前台路由（搜索需登录）
+Route::middleware('auth')->group(function () {
+    Route::get('/search', [SearchController::class, 'search'])->name('search');
+});
 
+Route::get('/', [SearchController::class, 'home'])->name('home');
 // 书籍相关
 Route::get('/book/{id}', [BookController::class, 'detail'])->name('book.detail');
 Route::get('/download/{id}', [BookController::class, 'download'])->name('book.download')->middleware('auth');
