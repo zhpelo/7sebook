@@ -29,6 +29,7 @@
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">用户名</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">邮箱</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">角色</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">状态</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">注册时间</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">操作</th>
                 </tr>
@@ -50,19 +51,58 @@
                                 {{ $user->role === 'admin' ? '管理员' : '用户' }}
                             </span>
                         </td>
+                        <td class="px-4 py-3">
+                            @if($user->is_banned)
+                                <div class="text-xs">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">已封禁</span>
+                                    @if($user->ban_reason)
+                                        <p class="mt-1 text-red-600 dark:text-red-400 max-w-xs break-words">{{ $user->ban_reason }}</p>
+                                    @endif
+                                </div>
+                            @else
+                                <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">正常</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{{ $user->created_at->format('Y-m-d') }}</td>
                         <td class="px-4 py-3">
-                            <div class="flex items-center space-x-2">
+                            <div class="flex items-center space-x-2 mb-2">
                                 <a href="{{ route('admin.edit_user', $user->id) }}" 
                                    class="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                @if($user->is_banned)
+                                    <form method="POST" action="{{ route('admin.unban_user', $user->id) }}">
+                                        @csrf
+                                        <button type="submit" class="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all" onclick="return confirm('确定要解封该用户吗？')">
+                                            <i class="fas fa-unlock"></i>
+                                        </button>
+                                    </form>
+                                @elseif($user->role !== 'admin')
+                                    <button type="button" class="toggle-ban-btn p-2 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-all" data-user-id="{{ $user->id }}">
+                                        <i class="fas fa-user-lock"></i>
+                                    </button>
+                                @endif
                                 <a href="{{ route('admin.delete_user', $user->id) }}" 
                                    class="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                                    onclick="return confirm('确定要删除这个用户吗？')">
                                     <i class="fas fa-trash"></i>
                                 </a>
                             </div>
+
+                            @if(!$user->is_banned && $user->role !== 'admin')
+                                <form id="ban-form-{{ $user->id }}" method="POST" action="{{ route('admin.ban_user', $user->id) }}" class="hidden mt-1 space-y-2">
+                                    @csrf
+                                    <select class="ban-reason-select w-full px-3 py-2 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100" data-target="ban-reason-{{ $user->id }}">
+                                        <option value="">常用封禁理由（可选）</option>
+                                        <option value="恶意发布垃圾内容">恶意发布垃圾内容</option>
+                                        <option value="多次违反社区规范">多次违反社区规范</option>
+                                        <option value="疑似异常注册或批量操作">疑似异常注册或批量操作</option>
+                                        <option value="涉嫌恶意攻击系统">涉嫌恶意攻击系统</option>
+                                    </select>
+                                    <input id="ban-reason-{{ $user->id }}" type="text" name="ban_reason" placeholder="封禁原因（可选）" class="w-full px-3 py-2 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100">
+                                    <button type="submit" class="w-full px-3 py-2 text-xs bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-all" onclick="return confirm('确认封禁该用户？')">确认封禁</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @endforeach
@@ -99,3 +139,42 @@
     <p class="mt-4 text-sm text-gray-500 dark:text-gray-400 text-center">共 {{ $total_users }} 个用户，第 {{ $page }} / {{ $total_pages }} 页</p>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function toggleBanForm(userId) {
+        const form = document.getElementById('ban-form-' + userId);
+        if (!form) {
+            return;
+        }
+
+        form.classList.toggle('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.toggle-ban-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const userId = button.dataset.userId;
+                if (!userId) {
+                    return;
+                }
+                toggleBanForm(userId);
+            });
+        });
+
+        document.querySelectorAll('.ban-reason-select').forEach(function (select) {
+            select.addEventListener('change', function () {
+                const targetId = select.dataset.target;
+                const input = document.getElementById(targetId);
+                if (!input) {
+                    return;
+                }
+
+                if (select.value) {
+                    input.value = select.value;
+                }
+            });
+        });
+    });
+</script>
+@endpush

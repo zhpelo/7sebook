@@ -84,6 +84,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('/users/add', [AdminUserController::class, 'postAddUser'])->name('admin.add_user.post');
     Route::get('/users/{id}/edit', [AdminUserController::class, 'showEditUser'])->name('admin.edit_user');
     Route::post('/users/{id}/edit', [AdminUserController::class, 'postEditUser'])->name('admin.edit_user.post');
+    Route::post('/users/{id}/ban', [AdminUserController::class, 'banUser'])->name('admin.ban_user');
+    Route::post('/users/{id}/unban', [AdminUserController::class, 'unbanUser'])->name('admin.unban_user');
     Route::get('/users/{id}/delete', [AdminUserController::class, 'deleteUser'])->name('admin.delete_user');
     Route::get('/users/batch-delete', [AdminUserController::class, 'batchDeleteUsers'])->name('admin.batch_delete_users');
 

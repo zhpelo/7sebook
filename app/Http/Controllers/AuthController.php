@@ -52,6 +52,17 @@ class AuthController extends Controller
         $user = User::where('username', $username)->first();
 
         if ($user && Hash::check($password, $user->password_hash)) {
+            if ($user->is_banned) {
+                $reason = trim((string) $user->ban_reason);
+                $message = '账号已被封禁，暂时无法登录。';
+
+                if ($reason !== '') {
+                    $message .= ' 原因：' . $reason;
+                }
+
+                return redirect()->route('login')->with('error', $message);
+            }
+
             Auth::login($user);
             
             // 检查是否有保存的intended URL，如果有则重定向到那里

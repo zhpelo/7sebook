@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\UserService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
@@ -228,6 +229,50 @@ class UserController extends Controller
         }
 
         return redirect()->route('admin.users');
+    }
+
+    /**
+     * 封禁用户
+     */
+    public function banUser(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'ban_reason' => 'nullable|string|max:500',
+        ]);
+
+        $user = User::findOrFail($id);
+
+        if ($user->role === 'admin') {
+            return redirect()->route('admin.users')->with('error', '管理员账号不允许封禁');
+        }
+
+        if (Auth::id() === $user->id) {
+            return redirect()->route('admin.users')->with('error', '不能封禁当前登录账号');
+        }
+
+        $reason = trim((string) ($validated['ban_reason'] ?? ''));
+
+        $user->is_banned = true;
+        $user->ban_reason = $reason !== '' ? $reason : null;
+        $user->banned_at = now();
+        $user->save();
+
+        return redirect()->route('admin.users')->with('message', '用户已封禁');
+    }
+
+    /**
+     * 解封用户
+     */
+    public function unbanUser($id)
+    {
+        $user = User::findOrFail($id);
+
+        $user->is_banned = false;
+        $user->ban_reason = null;
+        $user->banned_at = null;
+        $user->save();
+
+        return redirect()->route('admin.users')->with('message', '用户已解封');
     }
 }
 
