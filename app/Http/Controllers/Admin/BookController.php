@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\BookTag;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class BookController extends Controller
 {
@@ -26,6 +27,30 @@ class BookController extends Controller
         $limit = self::LIMIT;
         $offset = ($page - 1) * $limit;
 
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = strtolower((string) $request->get('sort_direction', 'desc'));
+        $fileFormat = trim($request->get('file_format', ''));
+        $sizeMinMb = $request->get('size_min');
+        $sizeMaxMb = $request->get('size_max');
+
+        $allowedSortBy = ['file_size', 'created_at', 'updated_at'];
+        if (!in_array($sortBy, $allowedSortBy, true)) {
+            $sortBy = 'created_at';
+        }
+
+        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+            $sortDirection = 'desc';
+        }
+
+        $sizeMinMb = (is_numeric($sizeMinMb) && (float) $sizeMinMb >= 0) ? (float) $sizeMinMb : null;
+        $sizeMaxMb = (is_numeric($sizeMaxMb) && (float) $sizeMaxMb >= 0) ? (float) $sizeMaxMb : null;
+
+        if ($sizeMinMb !== null && $sizeMaxMb !== null && $sizeMinMb > $sizeMaxMb) {
+            [$sizeMinMb, $sizeMaxMb] = [$sizeMaxMb, $sizeMinMb];
+        }
+
+        $sizeExpression = $this->getFileSizeBytesExpression();
+
         $query = Book::with('tags');
 
         if (!empty($bookSearch)) {
@@ -35,21 +60,53 @@ class BookController extends Controller
             });
         }
 
+        if (!empty($fileFormat)) {
+            $query->where('file_format', $fileFormat);
+        }
+
+        if ($sizeMinMb !== null) {
+            $query->whereRaw("{$sizeExpression} >= ?", [(int) round($sizeMinMb * 1024 * 1024)]);
+        }
+
+        if ($sizeMaxMb !== null) {
+            $query->whereRaw("{$sizeExpression} <= ?", [(int) round($sizeMaxMb * 1024 * 1024)]);
+        }
+
+        if ($sortBy === 'file_size') {
+            $query->orderByRaw("{$sizeExpression} {$sortDirection}");
+        } else {
+            $query->orderBy($sortBy, $sortDirection);
+        }
+
         // 先计算总数，再做分页
         $totalBooks = (clone $query)->count();
 
-        $books = $query->orderByDesc('created_at')
+        $books = $query
             ->limit($limit)
             ->offset($offset)
             ->get();
 
-        $totalPages = (int) ceil($totalBooks / $limit);
+        $totalPages = max(1, (int) ceil($totalBooks / $limit));
+        $fileFormats = Book::query()
+            ->select('file_format')
+            ->whereNotNull('file_format')
+            ->where('file_format', '!=', '')
+            ->distinct()
+            ->orderBy('file_format')
+            ->pluck('file_format');
 
         return view('admin.books', [
             'action' => 'books',
             'pageTitle' => '书籍管理 - 七秒电子书后台管理',
             'books' => $books,
             'book_search' => $bookSearch,
+            'sort_by' => $sortBy,
+            'sort_direction' => $sortDirection,
+            'file_format' => $fileFormat,
+            'size_min' => $sizeMinMb,
+            'size_max' => $sizeMaxMb,
+            'file_formats' => $fileFormats,
+            'pagination_query' => $request->except('page'),
             'page' => $page,
             'total_pages' => $totalPages,
             'total_books' => $totalBooks,
@@ -57,6 +114,19 @@ class BookController extends Controller
             'message' => $request->get('message'),
             'error' => $request->get('error'),
         ]);
+    }
+
+    private function getFileSizeBytesExpression(): string
+    {
+        return "CASE
+            WHEN file_size IS NULL OR TRIM(file_size) = '' THEN 0
+            WHEN UPPER(REPLACE(file_size, ' ', '')) LIKE '%TB' THEN CAST(REPLACE(UPPER(REPLACE(file_size, ' ', '')), 'TB', '') AS DECIMAL(20,4)) * 1099511627776
+            WHEN UPPER(REPLACE(file_size, ' ', '')) LIKE '%GB' THEN CAST(REPLACE(UPPER(REPLACE(file_size, ' ', '')), 'GB', '') AS DECIMAL(20,4)) * 1073741824
+            WHEN UPPER(REPLACE(file_size, ' ', '')) LIKE '%MB' THEN CAST(REPLACE(UPPER(REPLACE(file_size, ' ', '')), 'MB', '') AS DECIMAL(20,4)) * 1048576
+            WHEN UPPER(REPLACE(file_size, ' ', '')) LIKE '%KB' THEN CAST(REPLACE(UPPER(REPLACE(file_size, ' ', '')), 'KB', '') AS DECIMAL(20,4)) * 1024
+            WHEN UPPER(REPLACE(file_size, ' ', '')) LIKE '%B' THEN CAST(REPLACE(UPPER(REPLACE(file_size, ' ', '')), 'B', '') AS DECIMAL(20,4))
+            ELSE CAST(REPLACE(REPLACE(file_size, ',', ''), ' ', '') AS DECIMAL(20,4))
+        END";
     }
 
     /**
@@ -187,7 +257,19 @@ class BookController extends Controller
         $confirm = $request->get('confirm');
 
         if ($confirm === 'yes') {
-            Book::findOrFail($id)->delete();
+            $book = Book::findOrFail($id);
+
+            if (!$this->deleteBookStoredFile($book)) {
+                $failedPath = trim((string) $book->file_path);
+                $failedPath = $failedPath !== '' ? $failedPath : '(空路径)';
+
+                return redirect()->route('admin.books')->with(
+                    'error',
+                    '电子书文件删除失败，书籍ID：' . $book->id . '，文件路径：' . $failedPath
+                );
+            }
+
+            $book->delete();
             return redirect()->route('admin.books')->with('message', '电子书删除成功');
         }
 
@@ -210,12 +292,47 @@ class BookController extends Controller
         if ($ids && $confirm === 'yes') {
             $idArray = array_filter(array_map('intval', explode(',', $ids)));
             if (!empty($idArray)) {
-                Book::whereIn('id', $idArray)->delete();
-                return redirect()->route('admin.books')->with('message', '已成功删除 ' . count($idArray) . ' 本电子书');
+                $books = Book::whereIn('id', $idArray)->get();
+
+                foreach ($books as $book) {
+                    if (!$this->deleteBookStoredFile($book)) {
+                        $failedPath = trim((string) $book->file_path);
+                        $failedPath = $failedPath !== '' ? $failedPath : '(空路径)';
+
+                        return redirect()->route('admin.books')->with(
+                            'error',
+                            '批量删除失败，书籍ID：' . $book->id . '，文件路径：' . $failedPath
+                        );
+                    }
+                }
+
+                Book::whereIn('id', $books->pluck('id'))->delete();
+                return redirect()->route('admin.books')->with('message', '已成功删除 ' . $books->count() . ' 本电子书');
             }
         }
 
         return redirect()->route('admin.books');
+    }
+
+    private function deleteBookStoredFile(Book $book): bool
+    {
+        $path = trim((string) $book->file_path);
+        if ($path === '') {
+            return true;
+        }
+
+        $normalizedPath = ltrim(str_replace('\\', '/', $path), '/');
+        if ($normalizedPath === '') {
+            return true;
+        }
+
+        $disk = Storage::disk('local');
+
+        if (!$disk->exists($normalizedPath)) {
+            return true;
+        }
+
+        return $disk->delete($normalizedPath);
     }
 }
 
