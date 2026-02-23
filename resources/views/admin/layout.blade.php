@@ -58,6 +58,10 @@
                 <i class="fas fa-download w-5 mr-3"></i>
                 <span>下载设置</span>
             </a>
+            <a href="{{ route('admin.smtp_settings') }}" class="flex items-center px-4 py-3 rounded-lg mb-1 transition-all {{ ($action ?? '') === 'smtp_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                <i class="fas fa-paper-plane w-5 mr-3"></i>
+                <span>SMTP设置</span>
+            </a>
             <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
 
             <a href="{{ route('admin.settings') }}" class="flex items-center px-4 py-3 rounded-lg mb-2 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
@@ -127,6 +131,9 @@
                 </a>
                 <a href="{{ route('admin.download_settings') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'download_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                     <i class="fas fa-download mr-2"></i>下载设置
+                </a>
+                <a href="{{ route('admin.smtp_settings') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'smtp_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    <i class="fas fa-paper-plane mr-2"></i>SMTP设置
                 </a>
 
                 <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>

@@ -124,4 +124,6 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     Route::post('/site-settings', [AdminSettingController::class, 'postSiteSettings'])->name('admin.site_settings.post');
     Route::get('/download-settings', [AdminSettingController::class, 'downloadSettings'])->name('admin.download_settings');
     Route::post('/download-settings', [AdminSettingController::class, 'postDownloadSettings'])->name('admin.download_settings.post');
+    Route::get('/smtp-settings', [AdminSettingController::class, 'smtpSettings'])->name('admin.smtp_settings');
+    Route::post('/smtp-settings', [AdminSettingController::class, 'postSmtpSettings'])->name('admin.smtp_settings.post');
 });

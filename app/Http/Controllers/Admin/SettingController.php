@@ -25,6 +25,16 @@ class SettingController extends Controller
         'download_limit_vip' => '20',
     ];
 
+    private const SMTP_SETTING_DEFAULTS = [
+        'smtp_host' => '',
+        'smtp_port' => '465',
+        'smtp_username' => '',
+        'smtp_password' => '',
+        'smtp_encryption' => 'ssl',
+        'smtp_from_address' => '',
+        'smtp_from_name' => '七秒电子书',
+    ];
+
     protected UserService $userService;
 
     public function __construct(UserService $userService)
@@ -173,6 +183,51 @@ class SettingController extends Controller
         ]);
 
         return redirect()->route('admin.download_settings')->with('message', '下载设置更新成功');
+    }
+
+    /**
+     * SMTP 设置页面
+     */
+    public function smtpSettings()
+    {
+        return view('admin.smtp_settings', [
+            'action' => 'smtp_settings',
+            'pageTitle' => 'SMTP设置 - 七秒电子书后台管理',
+            'settings' => AppSetting::getValues(self::SMTP_SETTING_DEFAULTS),
+            'message' => request()->get('message'),
+            'error' => request()->get('error'),
+        ]);
+    }
+
+    /**
+     * 处理 SMTP 设置
+     */
+    public function postSmtpSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'smtp_host' => 'required|string|max:255',
+            'smtp_port' => 'required|integer|min:1|max:65535',
+            'smtp_username' => 'required|string|max:255',
+            'smtp_password' => 'nullable|string|max:255',
+            'smtp_encryption' => 'required|in:ssl,tls,none',
+            'smtp_from_address' => 'required|email|max:255',
+            'smtp_from_name' => 'required|string|max:100',
+        ]);
+
+        $existing = AppSetting::getValues(self::SMTP_SETTING_DEFAULTS);
+        $password = trim((string) ($validated['smtp_password'] ?? ''));
+
+        AppSetting::setValues([
+            'smtp_host' => trim($validated['smtp_host']),
+            'smtp_port' => (string) $validated['smtp_port'],
+            'smtp_username' => trim($validated['smtp_username']),
+            'smtp_password' => $password !== '' ? $password : (string) $existing['smtp_password'],
+            'smtp_encryption' => $validated['smtp_encryption'],
+            'smtp_from_address' => strtolower(trim($validated['smtp_from_address'])),
+            'smtp_from_name' => trim($validated['smtp_from_name']),
+        ]);
+
+        return redirect()->route('admin.smtp_settings')->with('message', 'SMTP设置更新成功');
     }
 }
 
