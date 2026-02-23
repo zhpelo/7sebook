@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Log;
 
 class DownloadService
 {
+    private const GUEST_COUNT_PREFIX = 'download_count:guest:';
+
     /**
      * 检查用户今日下载次数是否超过限制
      */
@@ -27,14 +29,14 @@ class DownloadService
     /**
      * 尝试记录下载日志（原子操作，带锁）
      */
-    public function tryLogDownload(int $userId, int $bookId, ?string $ipAddress = null): bool
+    public function tryLogDownload(int $userId, int $bookId, ?string $ipAddress = null, int $maxDailyLimit = 5): bool
     {
         if ($ipAddress === null) {
             $ipAddress = request()->ip();
         }
 
         try {
-            return DB::transaction(function () use ($userId, $bookId, $ipAddress) {
+            return DB::transaction(function () use ($userId, $bookId, $ipAddress, $maxDailyLimit) {
                 $todayStart = date('Y-m-d 00:00:00');
                 $todayEnd = date('Y-m-d 23:59:59');
 
@@ -45,7 +47,7 @@ class DownloadService
                     ->count();
 
                 // 如果已超过限制，返回false
-                if ($downloadCount >= 5) {
+                if ($downloadCount >= max(0, $maxDailyLimit)) {
                     return false;
                 }
 
@@ -92,8 +94,16 @@ class DownloadService
      */
     public function canDownload(int $userId, int $bookId, int $seconds = 30): bool
     {
+        return $this->canDownloadBySubjectKey("user:{$userId}", $seconds);
+    }
+
+    /**
+     * 基于主体Key检查短时间下载锁
+     */
+    public function canDownloadBySubjectKey(string $subjectKey, int $seconds = 30): bool
+    {
         // 全局下载锁：30秒内只允许一次下载请求（针对用户）
-        $globalLockKey = "download_lock:user:{$userId}";
+        $globalLockKey = "download_lock:{$subjectKey}";
         
         // 使用 Cache::add() 原子操作：只在键不存在时设置值
         // 如果键已存在，add() 返回 false，表示锁已存在
@@ -113,5 +123,42 @@ class DownloadService
     {
         $globalLockKey = "download_lock:user:{$userId}";
         Cache::forget($globalLockKey);
+    }
+
+    /**
+     * 清除主体下载锁
+     */
+    public function clearDownloadLockBySubjectKey(string $subjectKey): void
+    {
+        $globalLockKey = "download_lock:{$subjectKey}";
+        Cache::forget($globalLockKey);
+    }
+
+    /**
+     * 获取游客今日下载次数（同IP）
+     */
+    public function getGuestDownloadCount(string $ipAddress): int
+    {
+        $cacheKey = $this->getGuestDailyCacheKey($ipAddress);
+        return (int) Cache::get($cacheKey, 0);
+    }
+
+    /**
+     * 游客下载次数 +1（同IP）
+     */
+    public function incrementGuestDownloadCount(string $ipAddress): int
+    {
+        $cacheKey = $this->getGuestDailyCacheKey($ipAddress);
+        $expiresAt = now()->endOfDay();
+
+        $current = (int) Cache::get($cacheKey, 0) + 1;
+        Cache::put($cacheKey, $current, $expiresAt);
+
+        return $current;
+    }
+
+    private function getGuestDailyCacheKey(string $ipAddress): string
+    {
+        return self::GUEST_COUNT_PREFIX . date('Ymd') . ':' . md5(trim($ipAddress));
     }
 }

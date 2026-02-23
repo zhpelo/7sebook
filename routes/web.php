@@ -34,7 +34,7 @@ Route::middleware('auth')->group(function () {
 Route::get('/', [SearchController::class, 'home'])->name('home');
 // 书籍相关
 Route::get('/book/{id}', [BookController::class, 'detail'])->name('book.detail');
-Route::get('/download/{id}', [BookController::class, 'download'])->name('book.download')->middleware('auth');
+Route::get('/download/{id}', [BookController::class, 'download'])->name('book.download');
 Route::get('/tag/{tag}', [BookController::class, 'tagBooks'])->name('tag.books');
 
 // 用户认证
@@ -120,4 +120,8 @@ Route::prefix('admin')->middleware('admin')->group(function () {
     // 管理员设置
     Route::get('/settings', [AdminSettingController::class, 'adminSettings'])->name('admin.settings');
     Route::post('/settings', [AdminSettingController::class, 'postAdminSettings'])->name('admin.settings.post');
+    Route::get('/site-settings', [AdminSettingController::class, 'siteSettings'])->name('admin.site_settings');
+    Route::post('/site-settings', [AdminSettingController::class, 'postSiteSettings'])->name('admin.site_settings.post');
+    Route::get('/download-settings', [AdminSettingController::class, 'downloadSettings'])->name('admin.download_settings');
+    Route::post('/download-settings', [AdminSettingController::class, 'postDownloadSettings'])->name('admin.download_settings.post');
 });

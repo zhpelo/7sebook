@@ -45,16 +45,21 @@
                     <i class="fas fa-user text-gray-400 dark:text-gray-500 mr-2"></i>{{ $book->author ?: '未知作者' }}
                 </p>
 
+                @php
+                    $showDownloadButton = auth()->check() || ($can_guest_download ?? false);
+                @endphp
+
                 <!-- 操作按钮 -->
                 <div class="flex flex-wrap gap-3 mb-6">
-                    @auth
+                    @if($showDownloadButton)
                     <button id="btn-download"
-                        data-book-id="{{ $book->id }}"
                         data-download-url="{{ route('book.download', $book->id) }}"
                         class="btn-download px-6 md:px-8 py-3 md:py-3.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white rounded-xl transition-all font-medium text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-download mr-2"></i> <span class="download-text">下载</span>
                     </button>
+                    @endif
 
+                    @auth
                     <button class="btn-like px-5 md:px-6 py-3 md:py-3.5 rounded-xl font-medium active:scale-95 transition-all {{ $book->is_liked ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300' }} hover:shadow-md"
                         data-book-id="{{ $book->id }}"
                         data-liked="{{ $book->is_liked ? '1' : '0' }}">
@@ -67,7 +72,7 @@
                         <i class="fas fa-star mr-2"></i> 收藏
                         <span class="favorite-count">{{ $book->favorite_count }}</span>
                     </button>
-                    @else
+                    @elseif(!$showDownloadButton)
                     <a href="{{ route('login', ['intended' => route('book.detail', $book->id)]) }}"
                         class="px-6 md:px-8 py-3 md:py-3.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white rounded-xl transition-all font-medium text-base shadow-md hover:shadow-lg">
                         <i class="fas fa-sign-in-alt mr-2"></i>登录后下载
@@ -116,15 +121,10 @@
 
                 <!-- 下载次数  -->
                 @if(isset($remaining_downloads))
-
                 <div class="max-w-4xl mx-auto  bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                    
-                <i class="fas fa-info-circle mr-1"></i>
-                今日剩余下载次数：<span class="font-semibold {{ $remaining_downloads > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">{{ $remaining_downloads }}</span> 次
-
+                    <i class="fas fa-info-circle mr-1"></i>
+                    今日剩余下载次数：<span class="font-semibold {{ $remaining_downloads > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">{{ $remaining_downloads }}</span> 次
                 </div>
-
-
                 @endif
             </div>
         </div>
@@ -157,7 +157,6 @@
     @endif
 </div>
 
-@auth
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -275,5 +274,4 @@
     });
 </script>
 @endpush
-@endauth
 @endsection

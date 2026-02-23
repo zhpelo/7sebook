@@ -19,6 +19,7 @@
                 </h1>
             </div>
         </div>
+        @php($currentAdmin = auth()->user())
         <nav class="p-2">
             <a href="{{ route('admin.dashboard') }}" class="flex items-center px-4 py-3 rounded-lg mb-1 transition-all {{ ($action ?? 'dashboard') === 'dashboard' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                 <i class="fas fa-tachometer-alt w-5 mr-3"></i>
@@ -48,19 +49,33 @@
                 <i class="fas fa-tags w-5 mr-3"></i>
                 <span>标签管理</span>
             </a>
-            <a href="{{ route('admin.settings') }}" class="flex items-center px-4 py-3 rounded-lg mb-1 transition-all {{ ($action ?? '') === 'admin_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                <i class="fas fa-cog w-5 mr-3"></i>
-                <span>管理员设置</span>
+
+            <a href="{{ route('admin.site_settings') }}" class="flex items-center px-4 py-3 rounded-lg mb-1 transition-all {{ ($action ?? '') === 'site_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                <i class="fas fa-globe w-5 mr-3"></i>
+                <span>网站设置</span>
+            </a>
+            <a href="{{ route('admin.download_settings') }}" class="flex items-center px-4 py-3 rounded-lg mb-1 transition-all {{ ($action ?? '') === 'download_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                <i class="fas fa-download w-5 mr-3"></i>
+                <span>下载设置</span>
             </a>
             <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-            <a href="{{ route('home') }}" target="_blank" class="flex items-center px-4 py-3 rounded-lg mb-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
-                <i class="fas fa-external-link-alt w-5 mr-3"></i>
-                <span>访问前台</span>
+
+            <a href="{{ route('admin.settings') }}" class="flex items-center px-4 py-3 rounded-lg mb-2 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                <i class="fas fa-user-shield w-5 mr-3 text-gray-500 dark:text-gray-300"></i>
+                <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ $currentAdmin?->username ?? '管理员' }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $currentAdmin?->email ?? '' }}</p>
+                </div>
             </a>
-            <a href="{{ route('logout') }}" class="flex items-center px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
-                <i class="fas fa-sign-out-alt w-5 mr-3"></i>
-                <span>退出登录</span>
-            </a>
+
+            <div class="grid grid-cols-2 gap-2">
+                <a href="{{ route('home') }}" target="_blank" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all text-sm">
+                    <i class="fas fa-external-link-alt mr-1.5"></i>前台
+                </a>
+                <a href="{{ route('logout') }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white transition-all text-sm">
+                    <i class="fas fa-sign-out-alt mr-1.5"></i>退出
+                </a>
+            </div>
         </nav>
     </aside>
 
@@ -106,13 +121,28 @@
                 <a href="{{ route('admin.tags') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'tags' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                     <i class="fas fa-tags mr-2"></i>标签管理
                 </a>
-                <a href="{{ route('admin.settings') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'admin_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                    <i class="fas fa-cog mr-2"></i>管理员设置
+   
+                <a href="{{ route('admin.site_settings') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'site_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    <i class="fas fa-globe mr-2"></i>网站设置
                 </a>
+                <a href="{{ route('admin.download_settings') }}" class="block px-3 py-2 rounded-lg {{ ($action ?? '') === 'download_settings' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    <i class="fas fa-download mr-2"></i>下载设置
+                </a>
+
                 <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-                <a href="{{ route('logout') }}" class="block px-3 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                    <i class="fas fa-sign-out-alt mr-2"></i>退出登录
+
+                <a href="{{ route('admin.settings') }}" class="block px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 mb-2">
+                    <i class="fas fa-user-shield mr-2"></i>{{ $currentAdmin?->username ?? '管理员' }}
                 </a>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="{{ route('home') }}" target="_blank" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm">
+                        <i class="fas fa-external-link-alt mr-1.5"></i>前台
+                    </a>
+                    <a href="{{ route('logout') }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white text-sm">
+                        <i class="fas fa-sign-out-alt mr-1.5"></i>退出
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
